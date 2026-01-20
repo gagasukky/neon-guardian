@@ -1,0 +1,1949 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Guardian: Project Neutrino</title>
+    <!-- Favicon (絵文字: UFO) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛸</text></svg>">
+    <!-- Tailwind CSS (スタイリング用) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+
+        body {
+            background-color: #050505;
+            overflow: hidden; /* スクロール防止 */
+            touch-action: none; /* モバイルでのピンチズーム等を防止 */
+            font-family: 'Orbitron', sans-serif;
+            color: white;
+            /* 右クリックメニューを無効化するエリアであることを示すカーソル */
+            cursor: crosshair;
+            user-select: none; /* テキスト選択防止 */
+            -webkit-user-select: none;
+        }
+
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        /* UIオーバーレイ */
+        #uiLayer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none; /* キャンバスへのクリックを透過させる */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+        }
+
+        .hud-text {
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+        }
+        
+        /* 警告表示用 */
+        #warningLayer {
+            position: absolute;
+            top: 30%;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            z-index: 15;
+            pointer-events: none;
+            display: none;
+        }
+        .warning-text {
+            font-size: 3rem;
+            color: #ff0055;
+            font-weight: bold;
+            text-shadow: 0 0 20px #ff0055;
+            animation: blink 0.2s infinite alternate;
+        }
+        @keyframes blink {
+            from { opacity: 1; transform: scale(1); }
+            to { opacity: 0.5; transform: scale(1.1); }
+        }
+
+        /* ボムフラッシュ用 */
+        #flashLayer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: white;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.1s;
+        }
+
+        /* メニュー画面 (スタート/ゲームオーバー) */
+        #menuLayer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 20;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.3s;
+        }
+
+        /* モバイルコントロール用レイヤー */
+        #mobileControls {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            height: 150px;
+            z-index: 12; /* UIより上 */
+            pointer-events: none; /* エリア自体は透過 */
+            display: none; /* デフォルト非表示 */
+        }
+
+        /* ジョイスティックエリア */
+        #joystickZone {
+            position: absolute;
+            bottom: 20px;
+            left: 30px;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(0, 255, 255, 0.3);
+            border-radius: 50%;
+            pointer-events: auto; /* 操作可能に */
+            touch-action: none;
+        }
+
+        /* ジョイスティックのつまみ */
+        #joystickKnob {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 50px;
+            height: 50px;
+            background: rgba(0, 255, 255, 0.5);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+        }
+
+        /* アクションボタンエリア */
+        #actionZone {
+            position: absolute;
+            bottom: 20px;
+            right: 30px;
+            display: flex;
+            gap: 20px;
+            align-items: flex-end;
+            pointer-events: auto;
+        }
+
+        .action-btn {
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            touch-action: none;
+            user-select: none;
+            transition: transform 0.1s, background 0.1s;
+        }
+        .action-btn:active {
+            transform: scale(0.95);
+        }
+
+        #shootBtn {
+            width: 90px;
+            height: 90px;
+            background: rgba(255, 0, 85, 0.3);
+            border: 2px solid #ff0055;
+            color: #ff0055;
+            font-size: 1.2rem;
+        }
+        #shootBtn.active {
+            background: rgba(255, 0, 85, 0.8);
+            color: white;
+            box-shadow: 0 0 20px #ff0055;
+        }
+
+        #mobileBombBtn {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 170, 0, 0.3);
+            border: 2px solid #ffaa00;
+            color: #ffaa00;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+        #mobileBombBtn:active {
+            background: rgba(255, 170, 0, 0.8);
+            color: white;
+            box-shadow: 0 0 20px #ffaa00;
+        }
+
+        /* ストーリーモーダル */
+        #storyModal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 30;
+            background: rgba(0, 0, 0, 0.95);
+            display: none; /* 初期は非表示 */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        /* インタラクティブ要素はポインターイベントを有効化 */
+        .interactive {
+            pointer-events: auto;
+            cursor: pointer;
+        }
+
+        /* スライダーのカスタマイズ */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #00ffff;
+            cursor: pointer;
+            margin-top: -6px; 
+            box-shadow: 0 0 10px #00ffff;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #333;
+            border-radius: 2px;
+        }
+
+        .neon-btn {
+            background: transparent;
+            border: 2px solid #00ffff;
+            color: #00ffff;
+            padding: 12px 40px;
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+            transition: all 0.2s;
+            border-radius: 4px;
+        }
+        .neon-btn:hover {
+            background: #00ffff;
+            color: #000;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.8);
+        }
+
+        /* 設定トグルボタン */
+        .toggle-btn {
+            color: #888;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border-bottom: 1px dotted #888;
+            margin-bottom: 1rem;
+            transition: color 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .toggle-btn:hover {
+            color: #00ffff;
+            border-bottom-color: #00ffff;
+        }
+    </style>
+</head>
+<body oncontextmenu="return false;"> <!-- 右クリックメニュー無効化 -->
+
+    <!-- ゲーム描画エリア -->
+    <canvas id="gameCanvas"></canvas>
+    
+    <!-- ボムエフェクト -->
+    <div id="flashLayer"></div>
+    
+    <!-- 警告表示 -->
+    <div id="warningLayer">
+        <div id="warningTitle" class="warning-text">WARNING</div>
+        <div id="warningSubtitle" class="text-white text-xl tracking-widest mt-2">GIANT ENEMY DETECTED</div>
+    </div>
+
+    <!-- モバイルコントロール (スマホのみ表示) -->
+    <div id="mobileControls">
+        <!-- 左: ジョイスティック -->
+        <div id="joystickZone">
+            <div id="joystickKnob"></div>
+        </div>
+        <!-- 右: アクションボタン -->
+        <div id="actionZone">
+            <div id="mobileBombBtn" class="action-btn">BOMB</div>
+            <div id="shootBtn" class="action-btn">SHOOT</div>
+        </div>
+    </div>
+
+    <!-- プレイ中のHUD (スコアなど) -->
+    <div id="uiLayer">
+        <div class="flex justify-between items-start w-full max-w-5xl mx-auto">
+            <!-- 左側: スコア & ボム -->
+            <div class="hud-text text-xl md:text-2xl w-1/3">
+                SCORE: <span id="scoreDisplay">0</span>
+                <div class="text-sm text-yellow-400 mt-1">BOMB: <span id="bombDisplay">0</span> <span id="bombKeyInfo">(Right Click)</span></div>
+            </div>
+            
+            <!-- 中央: 時間 -->
+            <div class="hud-text text-2xl md:text-3xl text-yellow-400 w-1/3 text-center font-bold">
+                <span id="timeDisplay">10:00</span>
+            </div>
+            
+            <!-- 右側: HP & Heat -->
+            <div class="w-1/3 text-right">
+                <div class="hud-text text-xl md:text-2xl text-red-400">
+                    HP: <span id="hpDisplay">100</span>%
+                </div>
+                <!-- ヒートゲージ -->
+                <div class="flex flex-col items-end mt-1">
+                    <div class="w-32 md:w-48 bg-gray-800 h-2 border border-gray-600 relative overflow-hidden">
+                        <div id="heatBar" class="h-full bg-orange-500 w-0 transition-all duration-75"></div>
+                    </div>
+                    <div class="text-xs text-orange-400 mt-1" id="heatLabel">HEAT</div>
+                </div>
+            </div>
+        </div>
+        <!-- 操作ガイド -->
+        <div id="pcGuide" class="text-center text-gray-500 text-sm mb-4 opacity-50 hidden">
+            MOUSE to Move & Aim / CLICK to Shoot / R-CLICK to Bomb
+        </div>
+        <div id="mobileGuide" class="text-center text-gray-500 text-sm mb-4 opacity-50 hidden">
+            L-STICK to Move / R-BUTTON to Shoot (Auto Aim Active) / S-BUTTON to Bomb
+        </div>
+    </div>
+
+    <!-- ストーリー モーダル -->
+    <div id="storyModal" class="interactive">
+        <div class="max-w-2xl text-center">
+            <h2 class="text-3xl font-bold text-cyan-400 mb-6 border-b border-cyan-800 pb-4">PROJECT: NEUTRINO</h2>
+            
+            <p class="text-gray-300 mb-6 leading-relaxed text-left text-sm md:text-base">
+                西暦204X年。カミオカンデ周辺で観測された異常なニュートリノ・フラックスは、時空構造の「真空崩壊」の前触れだった。<br>
+                高次元宇宙からの侵略者<span class="text-red-400">「タキオン・スワーム」</span>に対し、人類はニュートリノ振動を利用した対消滅エンジン搭載機<span class="text-cyan-400 font-bold">「ネオン・ガーディアン」</span>を投入する。
+            </p>
+            
+            <p class="text-gray-300 mb-6 leading-relaxed text-left text-sm md:text-base">
+                敵を撃破した際に生じる<span class="text-white font-bold">「量子コア」</span>は、<span class="text-yellow-400 font-bold">ニュートリノ振動</span>によりそのフレーバー（性質）を絶えず変化させている。
+                パイロットは瞬時にその状態を見極め、機体出力を最適化しなければならない。
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 text-sm">
+                <div class="border border-red-500 p-3 rounded bg-red-900 bg-opacity-20">
+                    <div class="text-red-400 font-bold text-lg mb-1">電子ニュートリノ</div>
+                    <div class="text-red-300">νe (POWER)</div>
+                    <div class="text-gray-400 mt-2 text-xs">荷電カレント相互作用を増幅。<br>攻撃出力を最大化する。</div>
+                </div>
+                <div class="border border-cyan-500 p-3 rounded bg-cyan-900 bg-opacity-20">
+                    <div class="text-cyan-400 font-bold text-lg mb-1">ミューニュートリノ</div>
+                    <div class="text-cyan-300">νμ (SPEED)</div>
+                    <div class="text-gray-400 mt-2 text-xs">質量状態の変異を利用。<br>時間知覚と冷却効率を加速。</div>
+                </div>
+                <div class="border border-green-500 p-3 rounded bg-green-900 bg-opacity-20">
+                    <div class="text-green-400 font-bold text-lg mb-1">タウニュートリノ</div>
+                    <div class="text-green-300">ντ (HEAL)</div>
+                    <div class="text-gray-400 mt-2 text-xs">重い世代への崩壊熱を転用。<br>ナノマシンによる機体修復。</div>
+                </div>
+            </div>
+
+            <p class="text-white mb-8 font-bold text-sm md:text-base">
+                10分後に予測される「オメガ崩壊」を阻止し、宇宙の対称性を取り戻せ。
+            </p>
+
+            <button id="closeStoryBtn" class="neon-btn text-sm py-2 px-8">INITIALIZE SYSTEM</button>
+        </div>
+    </div>
+
+    <!-- メニュー画面 (設定・スタート) -->
+    <div id="menuLayer" class="interactive">
+        <h1 class="text-4xl md:text-6xl font-bold mb-2 text-center text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600" style="text-shadow: 0 0 20px rgba(0,255,255,0.5);">
+            NEON GUARDIAN
+            <span class="block text-xl md:text-3xl text-cyan-200 mt-2 tracking-widest font-light" style="text-shadow: none;">PROJECT: NEUTRINO</span>
+        </h1>
+        
+        <div class="mb-10"></div> <!-- スペーサー -->
+        
+        <!-- Story & Settings トグルボタンエリア -->
+        <div class="flex flex-col items-center gap-4 mb-8 w-full max-w-xs">
+            <div id="storyToggle" class="toggle-btn text-cyan-400 border-cyan-400 w-full text-center py-2 border rounded">📖 ARCHIVE / STORY</div>
+            <div id="settingsToggle" class="toggle-btn w-full text-center py-2 border border-gray-600 rounded">⚙ SYSTEM PARAMETERS ▼</div>
+        </div>
+
+        <!-- 折り畳み式ゲーム設定 GUI -->
+        <div id="settingsPanel" class="hidden bg-gray-900 border border-gray-700 p-6 rounded-lg shadow-2xl mb-8 w-11/12 max-w-md interactive transition-all duration-300">
+            <h2 class="text-xl text-cyan-400 mb-4 border-b border-gray-700 pb-2">SYSTEM PARAMETERS</h2>
+            <div class="mb-4">
+                <label class="block text-xs text-gray-400 mb-1 flex justify-between">
+                    <span>ENEMY SPAWN RATE (初期出現率)</span>
+                    <span id="spawnVal" class="text-white">Slow</span>
+                </label>
+                <input type="range" id="spawnRate" min="1" max="5" value="2" class="w-full interactive">
+            </div>
+            <!-- アイテム出現率 -->
+            <div class="mb-4">
+                <label class="block text-xs text-gray-400 mb-1 flex justify-between">
+                    <span>ITEM DROP RATE (アイテム出現率)</span>
+                    <span id="dropVal" class="text-white">High</span>
+                </label>
+                <input type="range" id="itemDropRate" min="1" max="5" value="4" class="w-full interactive">
+            </div>
+            <div class="mb-4">
+                <label class="block text-xs text-gray-400 mb-1 flex justify-between">
+                    <span>BULLET POWER (弾の威力)</span>
+                    <span id="powerVal" class="text-white">10</span>
+                </label>
+                <input type="range" id="bulletPower" min="5" max="50" step="5" value="10" class="w-full interactive">
+            </div>
+            <div class="mb-0">
+                <label class="block text-xs text-gray-400 mb-1 flex justify-between">
+                    <span>ENEMY SPEED (敵の速度)</span>
+                    <span id="speedVal" class="text-white">Normal</span>
+                </label>
+                <input type="range" id="enemySpeed" min="1" max="10" value="4" class="w-full interactive">
+            </div>
+        </div>
+
+        <button id="startBtn" class="neon-btn interactive">START MISSION</button>
+        <p id="highScoreDisplay" class="mt-6 text-gray-500 text-sm">HIGH SCORE: 0</p>
+    </div>
+
+<script>
+/**
+ * IQ99999 エージェントによる最適化されたゲームロジック
+ * * 主要コンポーネント:
+ * 1. GameEngine: ゲームループと状態管理
+ * 2. SoundSystem: WebAudioAPIを使用したシンセサイザー音響
+ * 3. Entities: プレイヤー、敵、ボス、弾、パーティクルの管理
+ */
+
+// --- 1. Sound System ---
+class SoundSystem {
+    constructor() {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = 0.3; // 音量を控えめに
+        this.masterGain.connect(this.ctx.destination);
+    }
+
+    resume() {
+        if (this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+    }
+
+    playShoot() {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(880, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(110, this.ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.1);
+    }
+
+    playEnemyShoot() {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(220, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(55, this.ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.15);
+    }
+
+    playExplosion() {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(100, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.6, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.3);
+    }
+
+    playBossSpawn(isLastBoss = false) {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        const startFreq = isLastBoss ? 30 : 50;
+        const endFreq = isLastBoss ? 60 : 100;
+        
+        osc.frequency.setValueAtTime(startFreq, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(endFreq, this.ctx.currentTime + 1.5);
+        
+        gain.gain.setValueAtTime(0.8, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 1.5);
+        
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 1.5);
+    }
+
+    playPowerUp() {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(880, this.ctx.currentTime + 0.1);
+        osc.frequency.linearRampToValueAtTime(1760, this.ctx.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.2);
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.2);
+    }
+
+    playHeal() {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(1320, this.ctx.currentTime + 0.1);
+        osc.frequency.linearRampToValueAtTime(1760, this.ctx.currentTime + 0.2);
+        
+        gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.4);
+        
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.4);
+    }
+
+    playBomb() {
+        // 重低音の爆発音
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(10, this.ctx.currentTime + 1.0);
+        
+        gain.gain.setValueAtTime(1.0, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 1.0);
+        
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 1.0);
+    }
+
+    // オーバーヒート警告音
+    playOverheat() {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(100, this.ctx.currentTime + 0.3);
+        
+        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.3);
+        
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.3);
+    }
+    
+    playClear() {
+        const now = this.ctx.currentTime;
+        const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98, 2093.00]; 
+        notes.forEach((freq, i) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + i * 0.15);
+            gain.gain.setValueAtTime(0.5, now + i * 0.15);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.15 + 1.0);
+            osc.connect(gain);
+            gain.connect(this.masterGain);
+            osc.start(now + i * 0.15);
+            osc.stop(now + i * 0.15 + 1.0);
+        });
+    }
+}
+
+// --- 2. Entities ---
+
+class Player {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.radius = 15;
+        this.color = '#00ffff';
+        this.hp = 100;
+        this.lastShotTime = 0;
+        
+        // 調整: 初期発射間隔を遅く
+        this.shootInterval = 250; 
+        
+        this.shotLevel = 1;
+        this.aimAngle = -Math.PI / 2;
+        this.bombs = 0; 
+        
+        // オーバーヒート関連
+        this.heat = 0;
+        this.maxHeat = 100;
+        this.overheated = false;
+        this.heatPerShot = 10;
+        this.coolingRate = 0.8; // 毎フレーム冷却値
+    }
+
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.aimAngle + Math.PI / 2);
+
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+        
+        // オーバーヒート中は点滅
+        if (this.overheated) {
+            ctx.fillStyle = (Date.now() % 200 < 100) ? '#ff3333' : '#550000';
+        } else {
+            ctx.fillStyle = this.color;
+        }
+        
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = this.color;
+        ctx.fill();
+        ctx.closePath();
+        ctx.shadowBlur = 0;
+
+        // Core
+        ctx.beginPath();
+        ctx.arc(0, 0, 5, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.closePath();
+        
+        // Sight
+        ctx.beginPath();
+        ctx.rect(-2, -this.radius - 5, 4, 10);
+        ctx.fillStyle = '#00ffff';
+        ctx.fill();
+        
+        ctx.restore();
+    }
+}
+
+class Bullet {
+    constructor(x, y, angle) {
+        this.x = x;
+        this.y = y;
+        this.speed = 12;
+        this.vx = Math.cos(angle) * this.speed;
+        this.vy = Math.sin(angle) * this.speed;
+        this.radius = 4;
+        this.markedForDeletion = false;
+        this.color = '#ffff00';
+    }
+
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) {
+            this.markedForDeletion = true;
+        }
+    }
+
+    draw(ctx) {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = this.color;
+        ctx.fill();
+        ctx.closePath();
+        ctx.shadowBlur = 0;
+    }
+}
+
+class EnemyBullet {
+    constructor(x, y, angle, speed = 6) {
+        this.x = x;
+        this.y = y;
+        this.speed = speed;
+        this.vx = Math.cos(angle) * this.speed;
+        this.vy = Math.sin(angle) * this.speed;
+        this.radius = 6;
+        this.markedForDeletion = false;
+        this.color = '#ff0055'; 
+    }
+
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) {
+            this.markedForDeletion = true;
+        }
+    }
+
+    draw(ctx) {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.shadowBlur = 5;
+        ctx.shadowColor = this.color;
+        ctx.fill();
+        ctx.closePath();
+        ctx.shadowBlur = 0;
+        
+        // Core
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.closePath();
+    }
+}
+
+class Enemy {
+    constructor(x, y, player, speedMultiplier, playerShotLevel) {
+        this.x = x;
+        this.y = y;
+        this.player = player;
+        this.speed = (Math.random() * 2 + 1) * speedMultiplier;
+        this.radius = 12 + Math.random() * 10;
+        this.markedForDeletion = false;
+        
+        // HP調整
+        const baseHp = 6; 
+        const levelBonus = playerShotLevel * 2;
+        this.maxHp = baseHp + levelBonus;
+        this.hp = this.maxHp;
+
+        const hue = Math.random() * 60 + 300; 
+        this.color = `hsl(${hue}, 80%, 60%)`;
+        this.angle = 0;
+    }
+
+    update() {
+        const dx = this.player.x - this.x;
+        const dy = this.player.y - this.y;
+        const distance = Math.hypot(dx, dy);
+        
+        if (distance > 0) {
+            this.x += (dx / distance) * this.speed;
+            this.y += (dy / distance) * this.speed;
+        }
+        this.angle += 0.1;
+    }
+
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.beginPath();
+        const s = this.radius;
+        ctx.rect(-s/2, -s/2, s, s);
+        ctx.fillStyle = 'transparent';
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = this.color;
+        ctx.stroke();
+        
+        // Core
+        ctx.beginPath();
+        ctx.arc(0, 0, s/3, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.fill();
+        ctx.restore();
+        ctx.shadowBlur = 0;
+    }
+}
+
+class Boss {
+    constructor(x, y, player, spawnCount, isLastBoss = false) {
+        this.x = x;
+        this.y = y;
+        this.player = player;
+        this.spawnCount = spawnCount;
+        this.isLastBoss = isLastBoss;
+        
+        this.lastShotTime = 0;
+        this.shootInterval = isLastBoss ? 700 : 1500; 
+        
+        if (isLastBoss) {
+            this.maxHp = 25000;
+            this.radius = 80;
+            this.color = '#ff0000'; 
+            this.speed = 1.0; 
+        } else {
+            this.maxHp = 500 * spawnCount; 
+            this.radius = 50;
+            this.color = '#ff0055'; 
+            this.speed = 1.2;
+        }
+        
+        this.hp = this.maxHp;
+        this.markedForDeletion = false;
+        this.angle = 0;
+    }
+
+    update(enemyBullets, soundSystem) { 
+        const dx = this.player.x - this.x;
+        const dy = this.player.y - this.y;
+        const distance = Math.hypot(dx, dy);
+        
+        if (distance > 0) {
+            this.x += (dx / distance) * this.speed;
+            this.y += (dy / distance) * this.speed;
+        }
+        this.angle += 0.02;
+
+        const now = Date.now();
+        if (now - this.lastShotTime > this.shootInterval) {
+            
+            if (this.isLastBoss) {
+                const ways = 12;
+                const offset = (this.angle * 2) % (Math.PI * 2); 
+                for (let i = 0; i < ways; i++) {
+                    const angle = offset + (Math.PI * 2 / ways) * i;
+                    enemyBullets.push(new EnemyBullet(this.x, this.y, angle, 5));
+                }
+            } else {
+                const baseAngle = Math.atan2(this.player.y - this.y, this.player.x - this.x);
+                enemyBullets.push(new EnemyBullet(this.x, this.y, baseAngle, 7));
+                enemyBullets.push(new EnemyBullet(this.x, this.y, baseAngle - 0.2, 7));
+                enemyBullets.push(new EnemyBullet(this.x, this.y, baseAngle + 0.2, 7));
+            }
+            
+            soundSystem.playEnemyShoot();
+            this.lastShotTime = now;
+        }
+    }
+
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        
+        ctx.beginPath();
+        const sides = this.isLastBoss ? 12 : 8; 
+        for (let i = 0; i < sides; i++) {
+            const theta = (i / sides) * 2 * Math.PI;
+            const px = Math.cos(theta) * this.radius;
+            const py = Math.sin(theta) * this.radius;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        
+        ctx.fillStyle = this.isLastBoss ? 'rgba(255, 0, 0, 0.3)' : 'rgba(255, 0, 85, 0.2)';
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 4;
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = this.color;
+        ctx.fill();
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.arc(0, 0, this.isLastBoss ? 30 : 20, 0, Math.PI * 2);
+        ctx.fillStyle = this.isLastBoss ? '#ffffff' : '#ffcc00';
+        ctx.fill();
+
+        ctx.restore();
+        
+        const barWidth = this.isLastBoss ? 200 : 100;
+        const barHeight = 8;
+        const hpPercent = this.hp / this.maxHp;
+        const yOffset = this.radius + 20;
+        
+        ctx.fillStyle = '#333';
+        ctx.fillRect(this.x - barWidth/2, this.y - yOffset, barWidth, barHeight);
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x - barWidth/2, this.y - yOffset, barWidth * hpPercent, barHeight);
+        ctx.strokeStyle = '#fff';
+        ctx.strokeRect(this.x - barWidth/2, this.y - yOffset, barWidth, barHeight);
+        
+        if (this.isLastBoss) {
+            ctx.fillStyle = '#ff0000';
+            ctx.font = 'bold 16px Orbitron';
+            ctx.textAlign = 'center';
+            ctx.fillText("OMEGA GUARDIAN", this.x, this.y - yOffset - 15);
+        }
+    }
+}
+
+class PowerUp {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.radius = 12;
+        this.markedForDeletion = false;
+        this.angle = 0;
+        this.vx = (Math.random() - 0.5) * 2;
+        this.vy = (Math.random() - 0.5) * 2;
+        this.creationTime = Date.now();
+        this.lifeTime = 10000; // 10秒に延長
+        this.opacity = 1.0;
+        
+        // 0: POWER (Orange), 1: SPEED (Cyan), 2: HEAL (Green)
+        this.type = 0;
+        this.color = '#ffaa00';
+        this.label = 'P';
+    }
+
+    update(player) {
+        if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+        if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+        this.x += this.vx;
+        this.y += this.vy;
+
+        const age = Date.now() - this.creationTime;
+        
+        // タイプサイクリング (1秒ごと)
+        const cycle = Math.floor(age / 1000) % 3;
+        this.type = cycle;
+        if (this.type === 0) {
+            this.color = '#ffaa00'; // Orange (電子ニュートリノ)
+            this.label = 'P';
+        } else if (this.type === 1) {
+            this.color = '#00ffff'; // Cyan (ミューニュートリノ)
+            this.label = 'S';
+        } else {
+            this.color = '#00ff00'; // Green (タウニュートリノ)
+            this.label = 'H';
+        }
+
+        if (age > this.lifeTime) {
+            this.markedForDeletion = true;
+        } else if (age > this.lifeTime - 1500) {
+            this.opacity = Math.abs(Math.sin(age * 0.01)) * 0.8 + 0.2;
+        }
+
+        const dx = player.x - this.x;
+        const dy = player.y - this.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 150) {
+            this.x += dx * 0.03;
+            this.y += dy * 0.03;
+        }
+    }
+
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.globalAlpha = this.opacity;
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const theta = (i * Math.PI * 2) / 6;
+            const px = Math.cos(theta) * this.radius;
+            const py = Math.sin(theta) * this.radius;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fillStyle = this.color;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = this.color;
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 12px Orbitron';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowBlur = 0;
+        ctx.fillText(this.label, 0, 0);
+        ctx.restore();
+    }
+}
+
+// 追加: ボムアイテムクラス
+class BombItem {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.radius = 12;
+        this.color = '#ff0000'; // 赤色
+        this.markedForDeletion = false;
+        this.angle = 0;
+        this.vx = (Math.random() - 0.5) * 2;
+        this.vy = (Math.random() - 0.5) * 2;
+        // ボムは消えない（永続）か、長めにする
+        this.creationTime = Date.now();
+        this.lifeTime = 15000; // 15秒
+        this.opacity = 1.0;
+    }
+
+    update(player) {
+        if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+        if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+        this.x += this.vx;
+        this.y += this.vy;
+
+        const age = Date.now() - this.creationTime;
+        if (age > this.lifeTime) {
+            this.markedForDeletion = true;
+        } else if (age > this.lifeTime - 1500) {
+            this.opacity = Math.abs(Math.sin(age * 0.01)) * 0.8 + 0.2;
+        }
+
+        const dx = player.x - this.x;
+        const dy = player.y - this.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 150) {
+            this.x += dx * 0.03;
+            this.y += dy * 0.03;
+        }
+    }
+
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.globalAlpha = this.opacity;
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = this.color;
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 12px Orbitron';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowBlur = 0;
+        ctx.fillText('B', 0, 0);
+        ctx.restore();
+    }
+}
+
+class Particle {
+    constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        this.radius = Math.random() * 3 + 1;
+        this.vx = (Math.random() - 0.5) * 8;
+        this.vy = (Math.random() - 0.5) * 8;
+        this.alpha = 1;
+        this.color = color;
+        this.markedForDeletion = false;
+        this.decay = Math.random() * 0.03 + 0.02;
+    }
+
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.alpha -= this.decay;
+        this.radius *= 0.95;
+        if (this.alpha <= 0 || this.radius < 0.1) {
+            this.markedForDeletion = true;
+        }
+    }
+
+    draw(ctx) {
+        ctx.save();
+        ctx.globalAlpha = this.alpha;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+class Star {
+    constructor(w, h) {
+        this.reset(w, h);
+        this.z = Math.random() * w;
+    }
+
+    reset(w, h) {
+        this.x = (Math.random() - 0.5) * w * 2;
+        this.y = (Math.random() - 0.5) * h * 2;
+        this.z = w;
+    }
+
+    update(w, h, speed) {
+        this.z -= speed;
+        if (this.z <= 0) {
+            this.reset(w, h);
+        }
+    }
+
+    draw(ctx, w, h) {
+        const sx = (this.x / this.z) * w + w/2;
+        const sy = (this.y / this.z) * h + h/2;
+        const r = (1 - this.z / w) * 3;
+        if (sx > 0 && sx < w && sy > 0 && sy < h) {
+            ctx.beginPath();
+            ctx.arc(sx, sy, r, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(255, 255, 255, ${1 - this.z/w})`;
+            ctx.fill();
+        }
+    }
+}
+
+// --- 3. Main Game Engine ---
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('scoreDisplay');
+const hpEl = document.getElementById('hpDisplay');
+const timeEl = document.getElementById('timeDisplay');
+const bombEl = document.getElementById('bombDisplay');
+const bombKeyInfo = document.getElementById('bombKeyInfo');
+const heatBar = document.getElementById('heatBar'); 
+const heatLabel = document.getElementById('heatLabel'); 
+const menuLayer = document.getElementById('menuLayer');
+const startBtn = document.getElementById('startBtn');
+const highScoreDisplay = document.getElementById('highScoreDisplay');
+const warningLayer = document.getElementById('warningLayer');
+const warningTitle = document.getElementById('warningTitle');
+const warningSubtitle = document.getElementById('warningSubtitle');
+const flashLayer = document.getElementById('flashLayer');
+const storyModal = document.getElementById('storyModal'); 
+const storyToggle = document.getElementById('storyToggle'); 
+const closeStoryBtn = document.getElementById('closeStoryBtn'); 
+
+// Mobile UI Elements
+const mobileControls = document.getElementById('mobileControls');
+const joystickZone = document.getElementById('joystickZone');
+const joystickKnob = document.getElementById('joystickKnob');
+const shootBtn = document.getElementById('shootBtn');
+const mobileBombBtn = document.getElementById('mobileBombBtn');
+
+// Settings Elements
+const settingsToggle = document.getElementById('settingsToggle');
+const settingsPanel = document.getElementById('settingsPanel');
+const spawnRateInput = document.getElementById('spawnRate');
+const bulletPowerInput = document.getElementById('bulletPower');
+const enemySpeedInput = document.getElementById('enemySpeed');
+const itemDropRateInput = document.getElementById('itemDropRate');
+
+let settings = {
+    spawnRate: 2, 
+    bulletPower: 10,
+    enemySpeedMultiplier: 1.0,
+    itemDropRate: 0.10
+};
+
+let gameActive = false;
+let score = 0;
+let highScore = 0;
+let frameCount = 0;
+let mouseX = 0;
+let mouseY = 0;
+let isMouseDown = false;
+let gameStartTime = 0;
+const TIME_LIMIT = 10 * 60 * 1000; 
+let isMobile = false; 
+
+// Boss Logic Variables
+const BOSS_INTERVAL = 2 * 60 * 1000; 
+let nextBossTime = BOSS_INTERVAL;
+let bossSpawnCount = 0;
+let lastBossSpawned = false; 
+
+// Mobile Input State
+let joystick = { x: 0, y: 0, active: false, id: null, startX: 0, startY: 0 };
+let mobileShootActive = false;
+let canvasScale = 1; // 追加: キャンバスのスケール比率
+
+let player;
+let bullets = [];
+let enemyBullets = []; 
+let enemies = [];
+let bosses = []; 
+let particles = [];
+let stars = [];
+let powerUps = []; 
+let bombItems = []; 
+const soundSystem = new SoundSystem();
+
+function resize() {
+    // 画面サイズ取得
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    
+    // デバイス判定（resize時にもチェック）
+    checkDevice();
+
+    if (isMobile) {
+        // モバイルの場合、視野を確保するために内部解像度を上げる
+        // 短辺が最低でも 600px になるようにスケール
+        const minSide = Math.min(width, height);
+        const targetMinSide = 600; 
+        canvasScale = Math.max(1, targetMinSide / minSide);
+    } else {
+        canvasScale = 1;
+    }
+
+    // Canvas内部解像度を設定
+    canvas.width = width * canvasScale;
+    canvas.height = height * canvasScale;
+
+    // CSSで画面いっぱいに表示（見た目のサイズ）
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+
+    // プレイヤー位置を画面中央へ再配置
+    if (player) {
+        player.x = canvas.width / 2;
+        player.y = canvas.height / 2;
+    }
+}
+window.addEventListener('resize', resize);
+// 初回呼び出しは initGame 等の後でも良いが、stars初期化前に行う
+// resize(); -> これは下のコードフローで呼ばれているのでOK
+
+for (let i = 0; i < 100; i++) {
+    stars.push(new Star(canvas.width, canvas.height));
+}
+
+// デバイス判定とUI切り替え
+function checkDevice() {
+    isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const pcGuide = document.getElementById('pcGuide');
+    const mobileGuide = document.getElementById('mobileGuide');
+    
+    if (isMobile) {
+        pcGuide.style.display = 'none';
+        mobileGuide.style.display = 'block';
+        bombKeyInfo.innerText = '(Tap Button)';
+        mobileControls.style.display = 'block';
+    } else {
+        pcGuide.style.display = 'block';
+        mobileGuide.style.display = 'none';
+        bombKeyInfo.innerText = '(Right Click)';
+        mobileControls.style.display = 'none';
+    }
+}
+// checkDevice(); -> resize内で呼ぶので削除してもよいが、即時判定のために残す
+checkDevice();
+resize(); // ここでresizeを呼んで canvasScale を確定させる
+
+// PC Mouse Controls
+window.addEventListener('mousemove', (e) => { 
+    if (!isMobile) {
+        // PCの場合は canvasScale は 1 なのでそのまま
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        mouseX = Math.max(0, Math.min(canvas.width, clientX));
+        mouseY = Math.max(0, Math.min(canvas.height, clientY));
+    }
+});
+window.addEventListener('mousedown', (e) => {
+    if (!isMobile && e.button === 0) isMouseDown = true; 
+});
+window.addEventListener('mouseup', () => {
+    if (!isMobile) isMouseDown = false;
+});
+window.addEventListener('contextmenu', (e) => {
+    if (!isMobile) {
+        e.preventDefault();
+        useBomb();
+        return false;
+    }
+});
+
+// Mobile Controls Implementation
+// Joystick Logic
+joystickZone.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const touch = e.changedTouches[0];
+    joystick.id = touch.identifier;
+    joystick.active = true;
+    joystick.startX = touch.clientX;
+    joystick.startY = touch.clientY;
+    updateJoystickVisual(0, 0);
+}, {passive: false});
+
+joystickZone.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (!joystick.active) return;
+    
+    for (let i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === joystick.id) {
+            const touch = e.changedTouches[i];
+            const maxDist = 40; // Joystick radius
+            let dx = touch.clientX - joystick.startX;
+            let dy = touch.clientY - joystick.startY;
+            const dist = Math.hypot(dx, dy);
+            
+            // Normalize input
+            if (dist > maxDist) {
+                dx = (dx / dist) * maxDist;
+                dy = (dy / dist) * maxDist;
+            }
+            
+            joystick.x = dx / maxDist;
+            joystick.y = dy / maxDist;
+            
+            updateJoystickVisual(dx, dy);
+            break;
+        }
+    }
+}, {passive: false});
+
+const endJoystick = (e) => {
+    e.preventDefault();
+    for (let i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === joystick.id) {
+            joystick.active = false;
+            joystick.x = 0;
+            joystick.y = 0;
+            updateJoystickVisual(0, 0);
+            break;
+        }
+    }
+};
+joystickZone.addEventListener('touchend', endJoystick);
+joystickZone.addEventListener('touchcancel', endJoystick);
+
+function updateJoystickVisual(x, y) {
+    joystickKnob.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+}
+
+// Mobile Buttons
+shootBtn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    mobileShootActive = true;
+    shootBtn.classList.add('active');
+}, {passive: false});
+
+shootBtn.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    mobileShootActive = false;
+    shootBtn.classList.remove('active');
+}, {passive: false});
+
+mobileBombBtn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    useBomb();
+    mobileBombBtn.style.transform = 'scale(0.9)';
+    setTimeout(() => mobileBombBtn.style.transform = 'scale(1)', 100);
+}, {passive: false});
+
+
+// ... UI Logic (Story, Settings) ...
+storyToggle.addEventListener('click', () => { storyModal.style.display = 'flex'; });
+closeStoryBtn.addEventListener('click', () => { storyModal.style.display = 'none'; });
+settingsToggle.addEventListener('click', () => {
+    if (settingsPanel.classList.contains('hidden')) {
+        settingsPanel.classList.remove('hidden');
+        settingsToggle.innerText = 'SETTINGS ▲';
+    } else {
+        settingsPanel.classList.add('hidden');
+        settingsToggle.innerText = 'SETTINGS ▼';
+    }
+});
+spawnRateInput.addEventListener('input', (e) => {
+    settings.spawnRate = parseInt(e.target.value);
+    document.getElementById('spawnVal').textContent = ["Very Slow", "Slow", "Normal", "Fast", "Chaos"][settings.spawnRate-1];
+});
+bulletPowerInput.addEventListener('input', (e) => {
+    settings.bulletPower = parseInt(e.target.value);
+    document.getElementById('powerVal').textContent = settings.bulletPower;
+});
+enemySpeedInput.addEventListener('input', (e) => {
+    const val = parseInt(e.target.value);
+    settings.enemySpeedMultiplier = val * 0.2 + 0.2; 
+    document.getElementById('speedVal').textContent = ["Crawler", "Slow", "Normal", "Fast", "Blitz", "Sonic", "Hyper", "Mach", "Light", "Warp"][val-1] || val;
+});
+itemDropRateInput.addEventListener('input', (e) => {
+    const val = parseInt(e.target.value);
+    settings.itemDropRate = [0.02, 0.04, 0.06, 0.10, 0.20][val-1];
+    document.getElementById('dropVal').textContent = ["Very Low", "Low", "Normal", "High", "Abundance"][val-1];
+});
+
+function updateMousePos(e) {
+    // タッチ操作用の座標更新（スケール考慮）
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    
+    // スケールを適用してゲーム内座標に変換
+    mouseX = Math.max(0, Math.min(canvas.width, clientX * canvasScale));
+    
+    // モバイルの場合は指で隠れないように少し上にオフセット
+    let offsetY = 0;
+    if (isMobile && e.touches) {
+        offsetY = -50 * canvasScale; // オフセットもスケール倍
+    }
+    mouseY = Math.max(0, Math.min(canvas.height, (clientY * canvasScale) + offsetY));
+}
+
+function initGame() {
+    score = 0;
+    scoreEl.innerText = score;
+    hpEl.innerText = 100;
+    hpEl.className = "text-xl md:text-2xl text-cyan-400";
+    timeEl.innerText = "10:00";
+    timeEl.style.color = "#fbbf24"; 
+    
+    // リサイズ処理を再度走らせて画面サイズを確定
+    resize();
+    
+    player = new Player(canvas.width / 2, canvas.height / 2);
+    bombEl.innerText = player.bombs;
+    updateHeatUI(); // 初期化
+
+    bullets = [];
+    enemyBullets = []; // 初期化
+    enemies = [];
+    bosses = [];
+    particles = [];
+    powerUps = []; 
+    bombItems = []; // 初期化
+    frameCount = 0;
+    gameStartTime = Date.now();
+    
+    // Boss reset
+    nextBossTime = BOSS_INTERVAL;
+    bossSpawnCount = 0;
+    lastBossSpawned = false;
+    
+    gameActive = true;
+    menuLayer.style.opacity = '0';
+    setTimeout(() => { if(gameActive) menuLayer.style.display = 'none'; }, 300);
+
+    soundSystem.resume();
+    loop();
+}
+
+function useBomb() {
+    if (!gameActive || player.bombs <= 0) return;
+    
+    player.bombs--;
+    bombEl.innerText = player.bombs;
+    soundSystem.playBomb();
+    
+    // フラッシュ演出
+    flashLayer.style.opacity = '0.8';
+    setTimeout(() => flashLayer.style.opacity = '0', 100);
+    
+    // 画面上の敵を全滅（ボスにはダメージ）
+    enemies.forEach(e => {
+        e.markedForDeletion = true;
+        // 爆発エフェクト
+        for (let i = 0; i < 5; i++) particles.push(new Particle(e.x, e.y, e.color));
+        score += 100;
+    });
+    
+    enemyBullets.forEach(b => {
+        b.markedForDeletion = true;
+        particles.push(new Particle(b.x, b.y, b.color));
+    });
+    
+    bosses.forEach(b => {
+        // ボスには大ダメージ (最大HPの10% + 固定2000)
+        const damage = (b.maxHp * 0.1) + 2000;
+        b.hp -= damage;
+        showFloatingText(b.x, b.y, "BOMB HIT!", "#ff0000");
+        
+        // ボス撃破判定はループ内の衝突処理か更新処理に任せる
+        if (b.hp <= 0) {
+            b.markedForDeletion = true;
+            score += 5000 * b.spawnCount;
+            soundSystem.playExplosion();
+            for (let i = 0; i < 50; i++) particles.push(new Particle(b.x, b.y, b.color));
+            
+            if (b.isLastBoss) {
+                score += 50000;
+                gameClear();
+            } else {
+                // 通常ボスならボムドロップ (再生産可能)
+                bombItems.push(new BombItem(b.x, b.y));
+            }
+        }
+    });
+    
+    scoreEl.innerText = score;
+    showFloatingText(player.x, player.y, "BOMB ACTIVATED!", "#ffaa00");
+}
+
+function spawnEnemy() {
+    const edge = Math.floor(Math.random() * 4); 
+    let x, y;
+    const buffer = 30;
+    switch(edge) {
+        case 0: x = Math.random() * canvas.width; y = -buffer; break;
+        case 1: x = canvas.width + buffer; y = Math.random() * canvas.height; break;
+        case 2: x = Math.random() * canvas.width; y = canvas.height + buffer; break;
+        case 3: x = -buffer; y = Math.random() * canvas.height; break;
+    }
+    
+    // HP調整用パラメータとして shotLevel を渡す
+    enemies.push(new Enemy(x, y, player, settings.enemySpeedMultiplier, player.shotLevel));
+}
+
+function spawnBoss(isLastBoss = false) {
+    if (!isLastBoss) bossSpawnCount++;
+    
+    const edge = Math.floor(Math.random() * 4); 
+    let x, y;
+    const buffer = 80;
+    switch(edge) {
+        case 0: x = canvas.width/2; y = -buffer; break;
+        case 1: x = canvas.width + buffer; y = canvas.height/2; break;
+        case 2: x = canvas.width/2; y = canvas.height + buffer; break;
+        case 3: x = -buffer; y = canvas.height/2; break;
+    }
+    
+    bosses.push(new Boss(x, y, player, bossSpawnCount, isLastBoss));
+    
+    // 警告演出
+    if (isLastBoss) {
+        warningTitle.innerText = "FINAL WARNING";
+        warningTitle.style.color = "#ff0000";
+        warningSubtitle.innerText = "OMEGA GUARDIAN APPROACHING";
+        soundSystem.playBossSpawn(true);
+    } else {
+        warningTitle.innerText = "WARNING";
+        warningTitle.style.color = "#ff0055";
+        warningSubtitle.innerText = "GIANT ENEMY DETECTED";
+        soundSystem.playBossSpawn(false);
+    }
+    
+    warningLayer.style.display = 'block';
+    setTimeout(() => { warningLayer.style.display = 'none'; }, 4000);
+}
+
+function checkCollisions() {
+    // 1. Bullets hit Enemies & Bosses
+    bullets.forEach(bullet => {
+        // vs Enemies
+        enemies.forEach(enemy => {
+            if (bullet.markedForDeletion || enemy.markedForDeletion) return;
+            const dist = Math.hypot(bullet.x - enemy.x, bullet.y - enemy.y);
+            if (dist - enemy.radius - bullet.radius < 1) {
+                bullet.markedForDeletion = true;
+                
+                // ダメージ処理
+                enemy.hp -= settings.bulletPower;
+                // ヒットエフェクト（小）
+                particles.push(new Particle(enemy.x, enemy.y, '#ffffff'));
+                
+                if (enemy.hp <= 0) {
+                    enemy.markedForDeletion = true; 
+                    // 確率変更: 設定値を使用
+                    if (Math.random() < settings.itemDropRate) powerUps.push(new PowerUp(enemy.x, enemy.y));
+                    for (let i = 0; i < 8; i++) particles.push(new Particle(enemy.x, enemy.y, enemy.color));
+                    score += 100;
+                    scoreEl.innerText = score;
+                    soundSystem.playExplosion();
+                }
+            }
+        });
+        
+        // vs Bosses
+        bosses.forEach(boss => {
+            if (bullet.markedForDeletion || boss.markedForDeletion) return;
+            const dist = Math.hypot(bullet.x - boss.x, bullet.y - boss.y);
+            if (dist - boss.radius - bullet.radius < 1) {
+                bullet.markedForDeletion = true;
+                boss.hp -= settings.bulletPower;
+                
+                // ヒットエフェクト
+                particles.push(new Particle(bullet.x, bullet.y, '#ffaa00'));
+                
+                if (boss.hp <= 0) {
+                    boss.markedForDeletion = true;
+                    soundSystem.playExplosion();
+                    
+                    // ボス撃破で大量パーティクル
+                    for (let i = 0; i < 50; i++) particles.push(new Particle(boss.x, boss.y, boss.color));
+                    
+                    if (boss.isLastBoss) {
+                        // ラスボス撃破 -> ゲームクリア
+                        score += 50000;
+                        scoreEl.innerText = score;
+                        gameClear();
+                    } else {
+                        // 通常ボス撃破 -> ボムアイテム確定ドロップ
+                        score += 5000 * boss.spawnCount;
+                        scoreEl.innerText = score;
+                        bombItems.push(new BombItem(boss.x, boss.y)); // ボム出現
+                    }
+                }
+            }
+        });
+    });
+
+    // 2. Enemy/Boss/EnemyBullet hit Player
+    // vs Enemies
+    enemies.forEach(enemy => {
+        if (enemy.markedForDeletion) return;
+        const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
+        if (dist - enemy.radius - player.radius < 1) {
+            enemy.markedForDeletion = true;
+            player.hp -= 20; 
+            updateHpUI();
+            soundSystem.playExplosion();
+            screenShake();
+            if (player.hp <= 0) gameOver();
+        }
+    });
+    
+    // vs Bosses
+    bosses.forEach(boss => {
+        if (boss.markedForDeletion) return;
+        const dist = Math.hypot(player.x - boss.x, player.y - boss.y);
+        if (dist - boss.radius - player.radius < 1) {
+            // ボスと接触: 大ダメージ + ノックバック
+            player.hp -= 50;
+            updateHpUI();
+            soundSystem.playExplosion();
+            screenShake();
+            
+            // プレイヤーを弾き飛ばす
+            const angle = Math.atan2(player.y - boss.y, player.x - boss.x);
+            player.x += Math.cos(angle) * 50;
+            player.y += Math.sin(angle) * 50;
+
+            if (player.hp <= 0) gameOver();
+        }
+    });
+
+    // vs Enemy Bullets
+    enemyBullets.forEach(eb => {
+        if (eb.markedForDeletion) return;
+        const dist = Math.hypot(player.x - eb.x, player.y - eb.y);
+        if (dist - eb.radius - player.radius < 1) {
+            eb.markedForDeletion = true;
+            player.hp -= 15; // 被弾ダメージ
+            updateHpUI();
+            soundSystem.playExplosion(); 
+            
+            for (let i = 0; i < 5; i++) particles.push(new Particle(player.x, player.y, '#ff0000'));
+            
+            if (player.hp <= 0) gameOver();
+        }
+    });
+
+    // 3. PowerUp Collection
+    powerUps.forEach(pu => {
+        const dist = Math.hypot(player.x - pu.x, player.y - pu.y);
+        if (dist - pu.radius - player.radius < 5) {
+            pu.markedForDeletion = true;
+            
+            // タイプに応じた効果
+            if (pu.type === 0) { // POWER
+                player.shotLevel++;
+                showFloatingText(player.x, player.y, "POWER UP!", "#ffaa00");
+                soundSystem.playPowerUp();
+            } else if (pu.type === 1) { // SPEED
+                player.shootInterval = Math.max(50, player.shootInterval * 0.9); // 10%短縮
+                // 変更: 発熱量も減らす (連射してもオーバーヒートしにくくする)
+                player.heatPerShot = Math.max(2, player.heatPerShot * 0.9);
+                
+                showFloatingText(player.x, player.y, "SPEED UP!", "#00ffff");
+                soundSystem.playPowerUp();
+            } else if (pu.type === 2) { // HEAL
+                player.hp = Math.min(100, player.hp + 30);
+                updateHpUI();
+                showFloatingText(player.x, player.y, "HEAL!", "#00ff00");
+                soundSystem.playHeal();
+            }
+        }
+    });
+
+    // 4. BombItem Collection
+    bombItems.forEach(bi => {
+        const dist = Math.hypot(player.x - bi.x, player.y - bi.y);
+        if (dist - bi.radius - player.radius < 5) {
+            bi.markedForDeletion = true;
+            player.bombs++;
+            bombEl.innerText = player.bombs;
+            showFloatingText(player.x, player.y, "BOMB GET!", "#ff0000");
+            soundSystem.playPowerUp(); // 音は流用
+        }
+    });
+}
+
+function updateHpUI() {
+    hpEl.innerText = Math.max(0, Math.floor(player.hp));
+    if (player.hp <= 30) hpEl.className = "text-xl md:text-2xl text-red-500 animate-pulse";
+    else hpEl.className = "text-xl md:text-2xl text-red-400";
+}
+
+function updateHeatUI() {
+    if (!player) return;
+    const percent = Math.min(100, Math.max(0, (player.heat / player.maxHeat) * 100));
+    heatBar.style.width = `${percent}%`;
+    
+    if (player.overheated) {
+        heatBar.style.backgroundColor = '#ef4444'; // Red-500
+        heatBar.parentElement.classList.add('border-red-500');
+        heatLabel.innerText = "OVERHEAT!";
+        heatLabel.classList.add('text-red-500', 'animate-pulse');
+    } else {
+        // 通常時: 熱量に応じて色変化 (Yellow -> Orange -> Red)
+        if (percent > 80) heatBar.style.backgroundColor = '#f97316'; // Orange-500
+        else heatBar.style.backgroundColor = '#eab308'; // Yellow-500
+        
+        heatBar.parentElement.classList.remove('border-red-500');
+        heatLabel.innerText = "HEAT";
+        heatLabel.classList.remove('text-red-500', 'animate-pulse');
+        heatLabel.className = "text-xs text-orange-400 mt-1";
+    }
+}
+
+function screenShake() {
+    canvas.style.transform = `translate(${Math.random()*10-5}px, ${Math.random()*10-5}px)`;
+    setTimeout(() => canvas.style.transform = 'translate(0,0)', 50);
+}
+
+function showFloatingText(x, y, text, color = '#00ff00') {
+    const floatText = document.createElement('div');
+    floatText.innerText = text;
+    floatText.style.position = 'absolute';
+    floatText.style.left = `${x}px`;
+    floatText.style.top = `${y}px`;
+    floatText.style.color = color;
+    floatText.style.fontWeight = 'bold';
+    floatText.style.pointerEvents = 'none';
+    floatText.style.animation = 'fadeOut 1s forwards';
+    document.body.appendChild(floatText);
+    setTimeout(() => floatText.remove(), 1000);
+}
+
+function gameClear() {
+    gameActive = false;
+    soundSystem.playClear();
+    if (score > highScore) {
+        highScore = score;
+        highScoreDisplay.innerText = `HIGH SCORE: ${highScore}`;
+        localStorage.setItem('neon_guardian_highscore', highScore);
+    }
+    menuLayer.style.display = 'flex';
+    setTimeout(() => menuLayer.style.opacity = '1', 10);
+    document.querySelector('#menuLayer h1').innerText = "MISSION CLEAR";
+    document.querySelector('#menuLayer h1').className = "text-4xl md:text-6xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-600";
+    document.querySelector('#startBtn').innerText = "PLAY AGAIN";
+}
+
+function gameOver() {
+    gameActive = false;
+    if (score > highScore) {
+        highScore = score;
+        highScoreDisplay.innerText = `HIGH SCORE: ${highScore}`;
+        localStorage.setItem('neon_guardian_highscore', highScore);
+    }
+    menuLayer.style.display = 'flex';
+    setTimeout(() => menuLayer.style.opacity = '1', 10);
+    document.querySelector('#menuLayer h1').innerText = "GAME OVER";
+    document.querySelector('#menuLayer h1').className = "text-4xl md:text-6xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-pink-600";
+    document.querySelector('#startBtn').innerText = "RETRY MISSION";
+}
+
+function formatTime(ms) {
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function loop() {
+    if (!gameActive) return;
+    requestAnimationFrame(loop);
+    frameCount++;
+
+    const elapsed = Date.now() - gameStartTime;
+    let remaining = TIME_LIMIT - elapsed;
+    
+    // Time & Boss Logic
+    if (remaining <= 0) {
+        // ラスボスフェーズ
+        if (!lastBossSpawned) {
+            spawnBoss(true); // ラスボス出現
+            lastBossSpawned = true;
+        }
+        timeEl.innerText = "FINAL BATTLE";
+        timeEl.style.color = "red";
+    } else {
+        // 通常フェーズ
+        timeEl.innerText = formatTime(remaining);
+        
+        // Regular Boss Spawning
+        if (elapsed >= nextBossTime) {
+            spawnBoss(false);
+            nextBossTime += BOSS_INTERVAL;
+        }
+    }
+
+    ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    stars.forEach(star => {
+        star.update(canvas.width, canvas.height, 10);
+        star.draw(ctx, canvas.width, canvas.height);
+    });
+
+    // Player Movement & Aiming
+    if (isMobile) {
+        // 1. 移動処理
+        if (joystick.active) {
+            const speed = 5 * canvasScale; 
+            player.x += joystick.x * speed;
+            player.y += joystick.y * speed;
+            
+            // 画面端判定
+            player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
+            player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
+        }
+
+        // 2. オートエイム処理 (モバイル専用)
+        let nearestTarget = null;
+        let minDist = Infinity;
+
+        // 敵とボスの両方を対象に最短距離を探索
+        const allTargets = [...enemies, ...bosses];
+        allTargets.forEach(target => {
+            if (target.markedForDeletion) return;
+            const dist = Math.hypot(target.x - player.x, target.y - player.y);
+            if (dist < minDist) {
+                minDist = dist;
+                nearestTarget = target;
+            }
+        });
+
+        if (nearestTarget) {
+            // ターゲットがいればそちらを向く
+            player.aimAngle = Math.atan2(nearestTarget.y - player.y, nearestTarget.x - player.x);
+        } else if (joystick.active && (joystick.x !== 0 || joystick.y !== 0)) {
+            // ターゲットがいなければ進行方向を向く
+            player.aimAngle = Math.atan2(joystick.y, joystick.x);
+        }
+
+    } else {
+        // PC: マウス追従
+        if (mouseX !== 0 && mouseY !== 0) {
+            player.x += (mouseX - player.x) * 0.15;
+            player.y += (mouseY - player.y) * 0.15;
+            const dx = mouseX - player.x;
+            const dy = mouseY - player.y;
+            if (Math.hypot(dx, dy) > 10) player.aimAngle = Math.atan2(dy, dx);
+        }
+    }
+    player.draw(ctx);
+
+    // Heat Logic Update
+    if (!player.overheated) {
+        // 撃っていない時は冷却
+        if (!(isMobile ? mobileShootActive : isMouseDown)) {
+            player.heat = Math.max(0, player.heat - player.coolingRate);
+        }
+    } else {
+        // オーバーヒート中は冷却のみ
+        player.heat = Math.max(0, player.heat - player.coolingRate);
+        if (player.heat <= 0) {
+            player.overheated = false; // 復帰
+        }
+    }
+    updateHeatUI();
+
+    const isMobileInput = isMobile && mobileShootActive;
+    const isPCInput = !isMobile && isMouseDown;
+    const shooting = (isMobileInput || isPCInput) && !player.overheated;
+    
+    if (shooting) {
+        const now = Date.now();
+        if (now - player.lastShotTime > player.shootInterval) {
+            // 発熱処理
+            player.heat += player.heatPerShot;
+            if (player.heat >= player.maxHeat) {
+                player.heat = player.maxHeat;
+                player.overheated = true;
+                soundSystem.playOverheat();
+            }
+
+            const baseAngle = player.aimAngle;
+            const count = player.shotLevel;
+            const spread = 0.15; 
+            const startAngle = baseAngle - ((count - 1) * spread) / 2;
+            for (let i = 0; i < count; i++) {
+                const angle = startAngle + (i * spread);
+                bullets.push(new Bullet(player.x, player.y, angle));
+            }
+            soundSystem.playShoot();
+            player.lastShotTime = now;
+        }
+    }
+
+    // Spawn regular enemies
+    const difficultyMultiplier = 1 + (elapsed / 60000) * 0.5; 
+    let baseInterval = 150 - (settings.spawnRate * 20); 
+    let actualInterval = baseInterval / difficultyMultiplier;
+    actualInterval = Math.max(5, actualInterval);
+
+    if (frameCount % Math.floor(actualInterval) === 0) {
+        spawnEnemy();
+    }
+
+    particles.forEach((p, index) => { p.update(); p.draw(ctx); if (p.markedForDeletion) particles.splice(index, 1); });
+    bullets.forEach((b, index) => { b.update(); b.draw(ctx); if (b.markedForDeletion) bullets.splice(index, 1); });
+    
+    // 敵弾更新
+    enemyBullets.forEach((eb, index) => { eb.update(); eb.draw(ctx); if (eb.markedForDeletion) enemyBullets.splice(index, 1); });
+
+    enemies.forEach((e, index) => { e.update(); e.draw(ctx); if (e.markedForDeletion) enemies.splice(index, 1); });
+    bosses.forEach((b, index) => { 
+        b.update(enemyBullets, soundSystem); // 引数渡す
+        b.draw(ctx); 
+        if (b.markedForDeletion) bosses.splice(index, 1); 
+    });
+    powerUps.forEach((p, index) => { p.update(player); p.draw(ctx); if (p.markedForDeletion) powerUps.splice(index, 1); });
+    bombItems.forEach((b, index) => { b.update(player); b.draw(ctx); if (b.markedForDeletion) bombItems.splice(index, 1); });
+
+    checkCollisions();
+}
+
+const savedScore = localStorage.getItem('neon_guardian_highscore');
+if (savedScore) {
+    highScore = parseInt(savedScore);
+    highScoreDisplay.innerText = `HIGH SCORE: ${highScore}`;
+}
+
+startBtn.addEventListener('click', () => { initGame(); });
+mouseX = canvas.width / 2;
+mouseY = canvas.height / 2;
+
+</script>
+</body>
+</html>
