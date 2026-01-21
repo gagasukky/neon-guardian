@@ -17,9 +17,8 @@
             touch-action: none; /* モバイルでのピンチズーム等を防止 */
             font-family: 'Orbitron', sans-serif;
             color: white;
-            /* 右クリックメニューを無効化するエリアであることを示すカーソル */
             cursor: crosshair;
-            user-select: none; /* テキスト選択防止 */
+            user-select: none;
             -webkit-user-select: none;
         }
 
@@ -30,7 +29,6 @@
             z-index: 1;
         }
 
-        /* UIオーバーレイ */
         #uiLayer {
             position: absolute;
             top: 0;
@@ -38,7 +36,7 @@
             width: 100%;
             height: 100%;
             z-index: 10;
-            pointer-events: none; /* キャンバスへのクリックを透過させる */
+            pointer-events: none;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -49,7 +47,6 @@
             text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
         }
         
-        /* 警告表示用 */
         #warningLayer {
             position: absolute;
             top: 30%;
@@ -72,7 +69,6 @@
             to { opacity: 0.5; transform: scale(1.1); }
         }
 
-        /* ボムフラッシュ用 */
         #flashLayer {
             position: absolute;
             top: 0;
@@ -86,7 +82,6 @@
             transition: opacity 0.1s;
         }
 
-        /* メニュー画面 (スタート/ゲームオーバー) */
         #menuLayer {
             position: absolute;
             top: 0;
@@ -103,19 +98,17 @@
             transition: opacity 0.3s;
         }
 
-        /* モバイルコントロール用レイヤー */
         #mobileControls {
             position: absolute;
             bottom: 20px;
             left: 0;
             width: 100%;
             height: 150px;
-            z-index: 12; /* UIより上 */
-            pointer-events: none; /* エリア自体は透過 */
-            display: none; /* デフォルト非表示 */
+            z-index: 12;
+            pointer-events: none;
+            display: none;
         }
 
-        /* ジョイスティックエリア */
         #joystickZone {
             position: absolute;
             bottom: 20px;
@@ -125,11 +118,10 @@
             background: rgba(255, 255, 255, 0.1);
             border: 2px solid rgba(0, 255, 255, 0.3);
             border-radius: 50%;
-            pointer-events: auto; /* 操作可能に */
+            pointer-events: auto;
             touch-action: none;
         }
 
-        /* ジョイスティックのつまみ */
         #joystickKnob {
             position: absolute;
             top: 50%;
@@ -143,7 +135,6 @@
             box-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
         }
 
-        /* アクションボタンエリア */
         #actionZone {
             position: absolute;
             bottom: 20px;
@@ -197,7 +188,6 @@
             box-shadow: 0 0 20px #ffaa00;
         }
 
-        /* ストーリーモーダル */
         #storyModal {
             position: absolute;
             top: 0;
@@ -206,7 +196,7 @@
             height: 100%;
             z-index: 30;
             background: rgba(0, 0, 0, 0.95);
-            display: none; /* 初期は非表示 */
+            display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
@@ -214,13 +204,11 @@
             overflow-y: auto;
         }
 
-        /* インタラクティブ要素はポインターイベントを有効化 */
         .interactive {
             pointer-events: auto;
             cursor: pointer;
         }
 
-        /* スライダーのカスタマイズ */
         input[type=range] {
             -webkit-appearance: none; 
             background: transparent; 
@@ -243,7 +231,6 @@
             border-radius: 2px;
         }
 
-        /* チェックボックス */
         input[type=checkbox] {
             accent-color: #00ffff;
             transform: scale(1.5);
@@ -269,7 +256,6 @@
             box-shadow: 0 0 30px rgba(0, 255, 255, 0.8);
         }
 
-        /* 設定トグルボタン */
         .toggle-btn {
             color: #888;
             font-size: 0.9rem;
@@ -300,53 +286,42 @@
         }
     </style>
 </head>
-<body oncontextmenu="return false;"> <!-- 右クリックメニュー無効化 -->
+<body oncontextmenu="return false;">
 
-    <!-- ゲーム描画エリア -->
     <canvas id="gameCanvas"></canvas>
     
-    <!-- ボムエフェクト -->
     <div id="flashLayer"></div>
     
-    <!-- 警告表示 -->
     <div id="warningLayer">
         <div id="warningTitle" class="warning-text">WARNING</div>
         <div id="warningSubtitle" class="text-white text-xl tracking-widest mt-2">GIANT ENEMY DETECTED</div>
     </div>
 
-    <!-- モバイルコントロール (スマホのみ表示) -->
     <div id="mobileControls">
-        <!-- 左: ジョイスティック -->
         <div id="joystickZone">
             <div id="joystickKnob"></div>
         </div>
-        <!-- 右: アクションボタン -->
         <div id="actionZone">
             <div id="mobileBombBtn" class="action-btn">BOMB</div>
             <div id="shootBtn" class="action-btn">SHOOT</div>
         </div>
     </div>
 
-    <!-- プレイ中のHUD (スコアなど) -->
     <div id="uiLayer">
         <div class="flex justify-between items-start w-full max-w-5xl mx-auto">
-            <!-- 左側: スコア & ボム -->
             <div class="hud-text text-xl md:text-2xl w-1/3">
                 SCORE: <span id="scoreDisplay">0</span>
                 <div class="text-sm text-yellow-400 mt-1">BOMB: <span id="bombDisplay">0</span> <span id="bombKeyInfo">(Right Click)</span></div>
             </div>
             
-            <!-- 中央: 時間 -->
             <div class="hud-text text-2xl md:text-3xl text-yellow-400 w-1/3 text-center font-bold">
                 <span id="timeDisplay">10:00</span>
             </div>
             
-            <!-- 右側: HP & Heat -->
             <div class="w-1/3 text-right">
                 <div class="hud-text text-xl md:text-2xl text-red-400">
                     HP: <span id="hpDisplay">100</span>%
                 </div>
-                <!-- ヒートゲージ -->
                 <div class="flex flex-col items-end mt-1">
                     <div class="w-32 md:w-48 bg-gray-800 h-2 border border-gray-600 relative overflow-hidden">
                         <div id="heatBar" class="h-full bg-orange-500 w-0 transition-all duration-75"></div>
@@ -355,16 +330,14 @@
                 </div>
             </div>
         </div>
-        <!-- 操作ガイド -->
         <div id="pcGuide" class="text-center text-gray-500 text-sm mb-4 opacity-50 hidden">
             MOUSE to Move & Aim / CLICK to Shoot / R-CLICK to Bomb
         </div>
         <div id="mobileGuide" class="text-center text-gray-500 text-sm mb-4 opacity-50 hidden">
-            L-STICK to Move / R-BUTTON to Shoot / S-BUTTON to Bomb
+            L-STICK to Move / R-BUTTON to Shoot (Auto Aim Active) / S-BUTTON to Bomb
         </div>
     </div>
 
-    <!-- ストーリー モーダル -->
     <div id="storyModal" class="interactive">
         <div class="max-w-2xl text-center">
             <h2 class="text-3xl font-bold text-cyan-400 mb-6 border-b border-cyan-800 pb-4">PROJECT: NEUTRINO</h2>
@@ -405,22 +378,19 @@
         </div>
     </div>
 
-    <!-- メニュー画面 (設定・スタート) -->
     <div id="menuLayer" class="interactive">
         <h1 class="text-4xl md:text-6xl font-bold mb-2 text-center text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600" style="text-shadow: 0 0 20px rgba(0,255,255,0.5);">
             NEON GUARDIAN
             <span class="block text-xl md:text-3xl text-cyan-200 mt-2 tracking-widest font-light" style="text-shadow: none;">PROJECT: NEUTRINO</span>
         </h1>
         
-        <div class="mb-10"></div> <!-- スペーサー -->
+        <div class="mb-10"></div>
         
-        <!-- Story & Settings トグルボタンエリア -->
         <div class="flex flex-col items-center gap-4 mb-8 w-full max-w-xs">
             <div id="storyToggle" class="toggle-btn text-cyan-400 border-cyan-400 w-full text-center py-2 border rounded">📖 ARCHIVE / STORY</div>
             <div id="settingsToggle" class="toggle-btn w-full text-center py-2 border border-gray-600 rounded">⚙ SYSTEM PARAMETERS ▼</div>
         </div>
 
-        <!-- 折り畳み式ゲーム設定 GUI -->
         <div id="settingsPanel" class="hidden bg-gray-900 border border-gray-700 p-6 rounded-lg shadow-2xl mb-8 w-11/12 max-w-md interactive transition-all duration-300 max-h-96 overflow-y-auto">
             <h2 class="text-xl text-cyan-400 mb-4 border-b border-gray-700 pb-2">SYSTEM PARAMETERS</h2>
             
@@ -429,24 +399,23 @@
                     <span>AUTO AIM (オートエイム)</span>
                     <input type="checkbox" id="autoAimToggle">
                 </label>
-                <p class="text-gray-500 text-xs mt-1">PC: Default OFF / Mobile: Default ON</p>
+                <p class="text-gray-500 text-xs mt-1">PC/Mobile Default ON</p>
             </div>
 
             <div class="mb-4">
                 <label class="block text-xs text-gray-400 mb-1 flex justify-between">
                     <span>ENEMY SPAWN RATE (初期出現率)</span>
-                    <span id="spawnVal" class="text-white">Slow</span>
+                    <span id="spawnVal" class="text-white">Normal</span>
                 </label>
-                <input type="range" id="spawnRate" min="1" max="5" value="2" class="w-full interactive">
+                <input type="range" id="spawnRate" min="1" max="5" value="3" class="w-full interactive">
             </div>
 
-            <!-- アイテム出現率 -->
             <div class="mb-4">
                 <label class="block text-xs text-gray-400 mb-1 flex justify-between">
                     <span>ITEM DROP RATE (アイテム出現率)</span>
-                    <span id="dropVal" class="text-white">High</span>
+                    <span id="dropVal" class="text-white">Normal</span>
                 </label>
-                <input type="range" id="itemDropRate" min="1" max="5" value="4" class="w-full interactive">
+                <input type="range" id="itemDropRate" min="1" max="5" value="3" class="w-full interactive">
             </div>
 
             <div class="mb-4">
@@ -465,7 +434,6 @@
                 <input type="range" id="enemySpeed" min="1" max="10" value="3" class="w-full interactive">
             </div>
 
-            <!-- 敵HP倍率 (共通) -->
             <div class="mb-4">
                 <label class="block text-xs text-gray-400 mb-1 flex justify-between">
                     <span>ENEMY HP MULTIPLIER (敵の耐久力)</span>
@@ -493,8 +461,31 @@ class SoundSystem {
     constructor() {
         this.ctx = new (window.AudioContext || window.webkitAudioContext)();
         this.masterGain = this.ctx.createGain();
-        this.masterGain.gain.value = 0.3; // 音量を控えめに
+        this.masterGain.gain.value = 0.3; 
+        
+        // BGM用のノード
+        this.bgmGain = this.ctx.createGain();
+        this.bgmGain.gain.value = 0.4; // BGM音量
+        this.bgmGain.connect(this.masterGain);
+        
+        // ディレイエフェクト（やまびこ）
+        this.delayNode = this.ctx.createDelay();
+        this.delayNode.delayTime.value = 0.3; // 300ms
+        this.feedbackGain = this.ctx.createGain();
+        this.feedbackGain.gain.value = 0.4; // フィードバック量
+        
+        this.delayNode.connect(this.feedbackGain);
+        this.feedbackGain.connect(this.delayNode);
+        this.delayNode.connect(this.bgmGain);
+        this.feedbackGain.connect(this.bgmGain); // エコーも出力
+
         this.masterGain.connect(this.ctx.destination);
+        
+        this.bgmInterval = null;
+        this.isPlayingBGM = false;
+        
+        // スケール: ドリアンモード風 (E F# G A B C# D)
+        this.scale = [164.81, 185.00, 196.00, 220.00, 246.94, 277.18, 293.66, 329.63, 392.00, 440.00];
     }
 
     resume() {
@@ -503,65 +494,140 @@ class SoundSystem {
         }
     }
 
+    startBGM() {
+        if (this.isPlayingBGM) return;
+        this.isPlayingBGM = true;
+        this.resume();
+        
+        let noteIndex = 0;
+        let bassNote = 82.41; // E2
+
+        // シーケンサー
+        this.bgmInterval = setInterval(() => {
+            if (!this.isPlayingBGM) return;
+            const now = this.ctx.currentTime;
+            
+            // 1. アルペジオ (ランダムな音)
+            if (Math.random() < 0.7) { // 70%の確率で鳴らす
+                const freq = this.scale[Math.floor(Math.random() * this.scale.length)];
+                this.playTone(freq, 'sine', 0.1, 0.1, 0.5); // 柔らかい音
+            }
+
+            // 2. ベースライン (4拍ごとにルート音を変えるなど)
+            if (noteIndex % 8 === 0) {
+                 bassNote = (Math.random() > 0.5) ? 82.41 : 73.42; // E2 or D2
+                 this.playTone(bassNote, 'triangle', 0.5, 0.2, 1.5); // 長めの低音
+            }
+            
+            noteIndex++;
+        }, 250); // BPM 120くらいの8分音符
+    }
+
+    stopBGM() {
+        this.isPlayingBGM = false;
+        if (this.bgmInterval) {
+            clearInterval(this.bgmInterval);
+            this.bgmInterval = null;
+        }
+    }
+
+    // 汎用トーン再生メソッド
+    playTone(freq, type, vol, attack, release) {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        
+        // エンベロープ（音の形）
+        gain.gain.setValueAtTime(0, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(vol, this.ctx.currentTime + attack);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + attack + release);
+        
+        osc.connect(gain);
+        gain.connect(this.bgmGain); // BGMバスへ
+        
+        // エコーへも送る (量を調整)
+        const sendToDelay = this.ctx.createGain();
+        sendToDelay.gain.value = 0.5;
+        gain.connect(sendToDelay);
+        sendToDelay.connect(this.delayNode);
+        
+        osc.start();
+        osc.stop(this.ctx.currentTime + attack + release);
+    }
+
     playShoot() {
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(880, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(110, this.ctx.currentTime + 0.1);
-        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
-        osc.connect(gain);
-        gain.connect(this.masterGain);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.1);
-    }
-
-    playEnemyShoot() {
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(220, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(55, this.ctx.currentTime + 0.15);
-        gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+        // 修正: 心地よいシンセ (Sine + 高速ピッチダウン)
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1200, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.15);
+        
+        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+        
         osc.connect(gain);
         gain.connect(this.masterGain);
         osc.start();
         osc.stop(this.ctx.currentTime + 0.15);
     }
 
+    playEnemyShoot() {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.2);
+    }
+
     playExplosion() {
+        // ノイズ生成は複雑なので、低周波の荒い波形で代用
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(100, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
-        gain.gain.setValueAtTime(0.6, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
-        osc.connect(gain);
+        osc.frequency.exponentialRampToValueAtTime(10, this.ctx.currentTime + 0.4);
+        
+        // ローパスフィルタでこもらせる
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 500;
+
+        gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
+        
+        osc.connect(filter);
+        filter.connect(gain);
         gain.connect(this.masterGain);
         osc.start();
-        osc.stop(this.ctx.currentTime + 0.3);
+        osc.stop(this.ctx.currentTime + 0.4);
     }
 
     playBossSpawn(isLastBoss = false) {
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.type = 'sawtooth';
-        const startFreq = isLastBoss ? 30 : 50;
-        const endFreq = isLastBoss ? 60 : 100;
+        const startFreq = isLastBoss ? 50 : 80;
+        const endFreq = isLastBoss ? 100 : 150;
         
         osc.frequency.setValueAtTime(startFreq, this.ctx.currentTime);
-        osc.frequency.linearRampToValueAtTime(endFreq, this.ctx.currentTime + 1.5);
+        osc.frequency.linearRampToValueAtTime(endFreq, this.ctx.currentTime + 2.0);
         
-        gain.gain.setValueAtTime(0.8, this.ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 1.5);
+        gain.gain.setValueAtTime(0.6, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 2.0);
         
         osc.connect(gain);
         gain.connect(this.masterGain);
         osc.start();
-        osc.stop(this.ctx.currentTime + 1.5);
+        osc.stop(this.ctx.currentTime + 2.0);
     }
 
     playPowerUp() {
@@ -571,7 +637,7 @@ class SoundSystem {
         osc.frequency.setValueAtTime(440, this.ctx.currentTime);
         osc.frequency.linearRampToValueAtTime(880, this.ctx.currentTime + 0.1);
         osc.frequency.linearRampToValueAtTime(1760, this.ctx.currentTime + 0.2);
-        gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
         gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.2);
         osc.connect(gain);
         gain.connect(this.masterGain);
@@ -584,10 +650,10 @@ class SoundSystem {
         const gain = this.ctx.createGain();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(880, this.ctx.currentTime);
-        osc.frequency.linearRampToValueAtTime(1320, this.ctx.currentTime + 0.1);
-        osc.frequency.linearRampToValueAtTime(1760, this.ctx.currentTime + 0.2);
+        osc.frequency.linearRampToValueAtTime(1100, this.ctx.currentTime + 0.2);
+        osc.frequency.linearRampToValueAtTime(1320, this.ctx.currentTime + 0.4);
         
-        gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
         gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.4);
         
         osc.connect(gain);
@@ -597,29 +663,33 @@ class SoundSystem {
     }
 
     playBomb() {
-        // 重低音の爆発音
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.type = 'square';
-        osc.frequency.setValueAtTime(150, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(10, this.ctx.currentTime + 1.0);
+        osc.frequency.setValueAtTime(100, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(10, this.ctx.currentTime + 1.5);
         
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(1000, this.ctx.currentTime);
+        filter.frequency.linearRampToValueAtTime(100, this.ctx.currentTime + 1.0);
+
         gain.gain.setValueAtTime(1.0, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 1.0);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 1.5);
         
-        osc.connect(gain);
+        osc.connect(filter);
+        filter.connect(gain);
         gain.connect(this.masterGain);
         osc.start();
-        osc.stop(this.ctx.currentTime + 1.0);
+        osc.stop(this.ctx.currentTime + 1.5);
     }
 
-    // オーバーヒート警告音
     playOverheat() {
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(300, this.ctx.currentTime);
-        osc.frequency.linearRampToValueAtTime(100, this.ctx.currentTime + 0.3);
+        osc.frequency.setValueAtTime(200, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(50, this.ctx.currentTime + 0.3);
         
         gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
         gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.3);
@@ -638,12 +708,12 @@ class SoundSystem {
             const gain = this.ctx.createGain();
             osc.type = 'triangle';
             osc.frequency.setValueAtTime(freq, now + i * 0.15);
-            gain.gain.setValueAtTime(0.5, now + i * 0.15);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.15 + 1.0);
+            gain.gain.setValueAtTime(0.3, now + i * 0.15);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.15 + 1.5);
             osc.connect(gain);
             gain.connect(this.masterGain);
             osc.start(now + i * 0.15);
-            osc.stop(now + i * 0.15 + 1.0);
+            osc.stop(now + i * 0.15 + 1.5);
         });
     }
 }
@@ -661,12 +731,11 @@ class Player {
         
         this.shootInterval = 250; 
         
-        this.shotLevel = 1; // 弾数（拡散数）
-        this.bulletSpeed = 12; // 弾速
+        this.shotLevel = 1; 
+        this.bulletSpeed = 12; 
         this.aimAngle = -Math.PI / 2;
         this.bombs = 0; 
         
-        // オーバーヒート関連
         this.heat = 0;
         this.maxHeat = 100;
         this.overheated = false;
@@ -682,7 +751,6 @@ class Player {
         ctx.beginPath();
         ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
         
-        // オーバーヒート中は点滅
         if (this.overheated) {
             ctx.fillStyle = (Date.now() % 200 < 100) ? '#ff3333' : '#550000';
         } else {
@@ -695,14 +763,12 @@ class Player {
         ctx.closePath();
         ctx.shadowBlur = 0;
 
-        // Core
         ctx.beginPath();
         ctx.arc(0, 0, 5, 0, Math.PI * 2);
         ctx.fillStyle = '#ffffff';
         ctx.fill();
         ctx.closePath();
         
-        // Sight
         ctx.beginPath();
         ctx.rect(-2, -this.radius - 5, 4, 10);
         ctx.fillStyle = '#00ffff';
@@ -774,7 +840,6 @@ class EnemyBullet {
         ctx.closePath();
         ctx.shadowBlur = 0;
         
-        // Core
         ctx.beginPath();
         ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
         ctx.fillStyle = '#ffffff';
@@ -790,17 +855,13 @@ class Enemy {
         this.player = player;
         this.speed = (Math.random() * 2 + 1) * speedMultiplier;
         
-        // サイズのランダム化 (10~25)
-        this.radius = 10 + Math.random() * 15;
-        this.originalRadius = this.radius; // 元のサイズを記憶
-        this.sizeFactor = this.radius / 10; // 1.0 ~ 2.5倍
+        // 修正: 敵の最小サイズを 10 -> 15 に拡大
+        this.radius = 15 + Math.random() * 15;
+        this.originalRadius = this.radius;
+        this.sizeFactor = this.radius / 15;
         
         this.markedForDeletion = false;
         
-        // HP調整ロジック刷新
-        // 弾威力が10
-        // 初期HP: Base(4) * Size(1.0~2.5) * Multiplier(1.0) = 4 ~ 10 (1発で倒せる)
-        // 成長: (ShotLevel - 1) * 5 で弾数に応じて増加
         const baseHp = 4; 
         const levelBonus = (playerShotLevel - 1) * 5;
         this.maxHp = (baseHp + levelBonus) * this.sizeFactor * settings.enemyHpMultiplier;
@@ -817,14 +878,12 @@ class Enemy {
         const distance = Math.hypot(dx, dy);
         
         if (distance > 0) {
-            // 大きい敵は少し遅く
             const speedMod = 1 / Math.sqrt(this.sizeFactor);
             this.x += (dx / distance) * this.speed * speedMod;
             this.y += (dy / distance) * this.speed * speedMod;
         }
         this.angle += 0.1;
         
-        // HP減少に伴うサイズ縮小 (最小でも元の40%)
         const hpRatio = Math.max(0, this.hp / this.maxHp);
         this.radius = this.originalRadius * (0.4 + 0.6 * hpRatio);
     }
@@ -843,7 +902,6 @@ class Enemy {
         ctx.shadowColor = this.color;
         ctx.stroke();
         
-        // Core
         ctx.beginPath();
         ctx.arc(0, 0, s/3, 0, Math.PI * 2);
         ctx.fillStyle = this.color;
@@ -864,7 +922,6 @@ class Boss {
         this.lastShotTime = 0;
         this.shootInterval = isLastBoss ? 700 : 1500; 
         
-        // HP調整: 共通の敵HP倍率を適用
         if (isLastBoss) {
             this.maxHp = 250000 * hpMultiplier;
             this.radius = 80;
@@ -977,10 +1034,9 @@ class PowerUp {
         this.vx = (Math.random() - 0.5) * 2;
         this.vy = (Math.random() - 0.5) * 2;
         this.creationTime = Date.now();
-        this.lifeTime = 10000; // 10秒に延長
+        this.lifeTime = 10000; 
         this.opacity = 1.0;
         
-        // 0: POWER (Orange), 1: SPEED (Cyan), 2: HEAL (Green)
         this.type = 0;
         this.color = '#ffaa00';
         this.label = 'P';
@@ -994,17 +1050,16 @@ class PowerUp {
 
         const age = Date.now() - this.creationTime;
         
-        // タイプサイクリング (1秒ごと)
         const cycle = Math.floor(age / 1000) % 3;
         this.type = cycle;
         if (this.type === 0) {
-            this.color = '#ffaa00'; // Orange (電子ニュートリノ)
+            this.color = '#ffaa00'; 
             this.label = 'P';
         } else if (this.type === 1) {
-            this.color = '#00ffff'; // Cyan (ミューニュートリノ)
+            this.color = '#00ffff'; 
             this.label = 'S';
         } else {
-            this.color = '#00ff00'; // Green (タウニュートリノ)
+            this.color = '#00ff00'; 
             this.label = 'H';
         }
 
@@ -1021,6 +1076,7 @@ class PowerUp {
             this.x += dx * 0.03;
             this.y += dy * 0.03;
         }
+        this.angle += 0.05;
     }
 
     draw(ctx) {
@@ -1051,20 +1107,18 @@ class PowerUp {
     }
 }
 
-// 追加: ボムアイテムクラス
 class BombItem {
     constructor(x, y) {
         this.x = x;
         this.y = y;
         this.radius = 12;
-        this.color = '#ff0000'; // 赤色
+        this.color = '#ff0000'; 
         this.markedForDeletion = false;
         this.angle = 0;
         this.vx = (Math.random() - 0.5) * 2;
         this.vy = (Math.random() - 0.5) * 2;
-        // ボムは消えない（永続）か、長めにする
         this.creationTime = Date.now();
-        this.lifeTime = 15000; // 15秒
+        this.lifeTime = 15000; 
         this.opacity = 1.0;
     }
 
@@ -1218,12 +1272,12 @@ const autoAimToggle = document.getElementById('autoAimToggle');
 
 // 初期設定値
 const defaultSettings = {
-    spawnRate: 2, 
+    spawnRate: 3, 
     bulletPower: 10,
-    enemySpeedMultiplier: 0.8, // Normal (3) -> 0.8
-    itemDropRate: 0.10,
-    enemyHpMultiplier: 1.0, // 初期値は1.0に変更 (初期敵のHPを抑えるため)
-    autoAim: false // 初期値は後でデバイス判定で上書き
+    enemySpeedMultiplier: 1.0, // Normal = 1.0
+    itemDropRate: 0.15, // Normal = 15%
+    enemyHpMultiplier: 1.0, 
+    autoAim: true 
 };
 
 let settings = { ...defaultSettings };
@@ -1295,9 +1349,8 @@ function checkDevice() {
     const pcGuide = document.getElementById('pcGuide');
     const mobileGuide = document.getElementById('mobileGuide');
     
-    // デバイス判定に応じてオートエイムの初期値を設定（初回のみ）
     if (typeof settings.autoAim === 'undefined') {
-        settings.autoAim = isMobile;
+        settings.autoAim = true;
         autoAimToggle.checked = settings.autoAim;
     }
 
@@ -1440,7 +1493,7 @@ function updateUIFromSettings() {
     enemySpeedInput.value = speedIndex + 1;
     document.getElementById('speedVal').textContent = ["Crawler", "Slow", "Normal", "Fast", "Blitz", "Sonic", "Hyper", "Mach", "Light", "Warp"][speedIndex] || (speedIndex + 1);
     
-    const rateIndex = [0.02, 0.04, 0.06, 0.10, 0.20].indexOf(settings.itemDropRate);
+    const rateIndex = [0.05, 0.08, 0.15, 0.25, 0.40].indexOf(settings.itemDropRate);
     itemDropRateInput.value = rateIndex + 1;
     document.getElementById('dropVal').textContent = ["Very Low", "Low", "Normal", "High", "Abundance"][rateIndex];
 
@@ -1465,8 +1518,10 @@ enemySpeedInput.addEventListener('input', (e) => {
 });
 itemDropRateInput.addEventListener('input', (e) => {
     const val = parseInt(e.target.value);
-    settings.itemDropRate = [0.02, 0.04, 0.06, 0.10, 0.20][val-1];
-    updateUIFromSettings();
+    const rates = [0.05, 0.08, 0.15, 0.25, 0.40]; // 確率アップ
+    settings.itemDropRate = rates[val-1];
+    const labels = ["Very Low", "Low", "Normal", "High", "Abundance"];
+    document.getElementById('dropVal').textContent = labels[val-1];
 });
 enemyHpInput.addEventListener('input', (e) => {
     const val = parseInt(e.target.value);
@@ -1479,8 +1534,7 @@ autoAimToggle.addEventListener('change', (e) => {
 
 resetSettingsBtn.addEventListener('click', () => {
     settings = { ...defaultSettings };
-    // デバイスに応じたオートエイム初期化
-    settings.autoAim = isMobile;
+    settings.autoAim = true; // デフォルトON
     updateUIFromSettings();
 });
 
@@ -1514,6 +1568,9 @@ function initGame() {
     player = new Player(canvas.width / 2, canvas.height / 2);
     bombEl.innerText = player.bombs;
     updateHeatUI(); 
+    
+    // BGMスタート (再生可能な場合)
+    soundSystem.startBGM();
 
     bullets = [];
     enemyBullets = []; 
@@ -1753,14 +1810,14 @@ function showFloatingText(x, y, text, color = '#00ff00') {
 }
 
 function gameClear() {
-    gameActive = false; soundSystem.playClear();
+    gameActive = false; soundSystem.playClear(); soundSystem.stopBGM();
     if (score > highScore) { highScore = score; highScoreDisplay.innerText = `HIGH SCORE: ${highScore}`; localStorage.setItem('neon_guardian_highscore', highScore); }
     menuLayer.style.display = 'flex'; setTimeout(() => menuLayer.style.opacity = '1', 10);
     document.querySelector('#menuLayer h1').innerText = "MISSION CLEAR"; document.querySelector('#menuLayer h1').className = "text-4xl md:text-6xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-600"; document.querySelector('#startBtn').innerText = "PLAY AGAIN";
 }
 
 function gameOver() {
-    gameActive = false;
+    gameActive = false; soundSystem.stopBGM();
     if (score > highScore) { highScore = score; highScoreDisplay.innerText = `HIGH SCORE: ${highScore}`; localStorage.setItem('neon_guardian_highscore', highScore); }
     menuLayer.style.display = 'flex'; setTimeout(() => menuLayer.style.opacity = '1', 10);
     document.querySelector('#menuLayer h1').innerText = "GAME OVER"; document.querySelector('#menuLayer h1').className = "text-4xl md:text-6xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-pink-600"; document.querySelector('#startBtn').innerText = "RETRY MISSION";
