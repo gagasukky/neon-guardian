@@ -243,6 +243,13 @@
             border-radius: 2px;
         }
 
+        /* チェックボックス */
+        input[type=checkbox] {
+            accent-color: #00ffff;
+            transform: scale(1.5);
+            cursor: pointer;
+        }
+
         .neon-btn {
             background: transparent;
             border: 2px solid #00ffff;
@@ -350,10 +357,10 @@
         </div>
         <!-- 操作ガイド -->
         <div id="pcGuide" class="text-center text-gray-500 text-sm mb-4 opacity-50 hidden">
-            MOUSE to Move & Aim / CLICK to Shoot / R-CLICK to Bomb
+            MOUSE to Move / CLICK to Shoot / R-CLICK to Bomb
         </div>
         <div id="mobileGuide" class="text-center text-gray-500 text-sm mb-4 opacity-50 hidden">
-            L-STICK to Move / R-BUTTON to Shoot (Auto Aim Active) / S-BUTTON to Bomb
+            L-STICK to Move / R-BUTTON to Shoot / S-BUTTON to Bomb
         </div>
     </div>
 
@@ -418,6 +425,14 @@
             <h2 class="text-xl text-cyan-400 mb-4 border-b border-gray-700 pb-2">SYSTEM PARAMETERS</h2>
             
             <div class="mb-4">
+                <label class="block text-xs text-gray-400 mb-1 flex justify-between items-center">
+                    <span>AUTO AIM (オートエイム)</span>
+                    <input type="checkbox" id="autoAimToggle">
+                </label>
+                <p class="text-gray-500 text-xs mt-1">PC: Default OFF / Mobile: Default ON</p>
+            </div>
+
+            <div class="mb-4">
                 <label class="block text-xs text-gray-400 mb-1 flex justify-between">
                     <span>ENEMY SPAWN RATE (初期出現率)</span>
                     <span id="spawnVal" class="text-white">Slow</span>
@@ -454,9 +469,9 @@
             <div class="mb-4">
                 <label class="block text-xs text-gray-400 mb-1 flex justify-between">
                     <span>ENEMY HP MULTIPLIER (敵の耐久力)</span>
-                    <span id="enemyHpVal" class="text-white">x2.0</span>
+                    <span id="enemyHpVal" class="text-white">x1.0</span>
                 </label>
-                <input type="range" id="enemyHp" min="1" max="10" value="4" class="w-full interactive">
+                <input type="range" id="enemyHp" min="1" max="10" value="2" class="w-full interactive">
             </div>
 
             <div class="text-center">
@@ -777,16 +792,17 @@ class Enemy {
         
         // サイズのランダム化 (10~25)
         this.radius = 10 + Math.random() * 15;
+        this.originalRadius = this.radius; // 元のサイズを記憶
         this.sizeFactor = this.radius / 10; // 1.0 ~ 2.5倍
         
         this.markedForDeletion = false;
         
-        // HP調整ロジック刷新 (一般敵と共通)
-        // 弾威力が10なので、基礎HP8なら1発
-        const baseHp = 8; 
-        // レベルボーナスはShotLevelに応じて上昇。ShotLevel1なら0。
-        const levelBonus = (playerShotLevel - 1) * 2;
-        // 基本HPにレベルボーナスを足し、サイズと全体設定の倍率を掛ける
+        // HP調整ロジック刷新
+        // 弾威力が10
+        // 初期HP: Base(4) * Size(1.0~2.5) * Multiplier(1.0) = 4 ~ 10 (1発で倒せる)
+        // 成長: (ShotLevel - 1) * 5 で弾数に応じて増加
+        const baseHp = 4; 
+        const levelBonus = (playerShotLevel - 1) * 5;
         this.maxHp = (baseHp + levelBonus) * this.sizeFactor * settings.enemyHpMultiplier;
         this.hp = this.maxHp;
 
@@ -807,6 +823,10 @@ class Enemy {
             this.y += (dy / distance) * this.speed * speedMod;
         }
         this.angle += 0.1;
+        
+        // HP減少に伴うサイズ縮小 (最小でも元の40%)
+        const hpRatio = Math.max(0, this.hp / this.maxHp);
+        this.radius = this.originalRadius * (0.4 + 0.6 * hpRatio);
     }
 
     draw(ctx) {
@@ -1194,6 +1214,7 @@ const bulletPowerInput = document.getElementById('bulletPower');
 const enemySpeedInput = document.getElementById('enemySpeed');
 const itemDropRateInput = document.getElementById('itemDropRate');
 const enemyHpInput = document.getElementById('enemyHp');
+const autoAimToggle = document.getElementById('autoAimToggle');
 
 // 初期設定値
 const defaultSettings = {
@@ -1201,7 +1222,8 @@ const defaultSettings = {
     bulletPower: 10,
     enemySpeedMultiplier: 1.0,
     itemDropRate: 0.10,
-    enemyHpMultiplier: 2.0 // 初期値は2倍
+    enemyHpMultiplier: 1.0, // 初期値は1.0に変更 (初期敵のHPを抑えるため)
+    autoAim: false // 初期値は後でデバイス判定で上書き
 };
 
 let settings = { ...defaultSettings };
@@ -1273,6 +1295,12 @@ function checkDevice() {
     const pcGuide = document.getElementById('pcGuide');
     const mobileGuide = document.getElementById('mobileGuide');
     
+    // デバイス判定に応じてオートエイムの初期値を設定（初回のみ）
+    if (typeof settings.autoAim === 'undefined') {
+        settings.autoAim = isMobile;
+        autoAimToggle.checked = settings.autoAim;
+    }
+
     if (isMobile) {
         pcGuide.style.display = 'none';
         mobileGuide.style.display = 'block';
@@ -1416,8 +1444,10 @@ function updateUIFromSettings() {
     itemDropRateInput.value = rateIndex + 1;
     document.getElementById('dropVal').textContent = ["Very Low", "Low", "Normal", "High", "Abundance"][rateIndex];
 
-    enemyHpInput.value = Math.round(settings.enemyHpMultiplier * 2); // 0.5 to 5.0 map to 1 to 10
+    enemyHpInput.value = Math.round(settings.enemyHpMultiplier * 2); 
     document.getElementById('enemyHpVal').textContent = `x${settings.enemyHpMultiplier}`;
+    
+    autoAimToggle.checked = settings.autoAim;
 }
 
 spawnRateInput.addEventListener('input', (e) => {
@@ -1440,12 +1470,17 @@ itemDropRateInput.addEventListener('input', (e) => {
 });
 enemyHpInput.addEventListener('input', (e) => {
     const val = parseInt(e.target.value);
-    settings.enemyHpMultiplier = val * 0.5; // 0.5x to 5.0x
+    settings.enemyHpMultiplier = val * 0.5; 
     updateUIFromSettings();
+});
+autoAimToggle.addEventListener('change', (e) => {
+    settings.autoAim = e.target.checked;
 });
 
 resetSettingsBtn.addEventListener('click', () => {
     settings = { ...defaultSettings };
+    // デバイスに応じたオートエイム初期化
+    settings.autoAim = isMobile;
     updateUIFromSettings();
 });
 
@@ -1772,17 +1807,26 @@ function loop() {
 
         let nearestTarget = null;
         let minDist = Infinity;
-        const allTargets = [...enemies, ...bosses];
-        allTargets.forEach(target => {
-            if (target.markedForDeletion) return;
-            const dist = Math.hypot(target.x - player.x, target.y - player.y);
-            if (dist < minDist) { minDist = dist; nearestTarget = target; }
-        });
+        
+        // オートエイム判定
+        if (settings.autoAim) {
+            const allTargets = [...enemies, ...bosses];
+            allTargets.forEach(target => {
+                if (target.markedForDeletion) return;
+                const dist = Math.hypot(target.x - player.x, target.y - player.y);
+                if (dist < minDist) { minDist = dist; nearestTarget = target; }
+            });
 
-        if (nearestTarget) {
-            player.aimAngle = Math.atan2(nearestTarget.y - player.y, nearestTarget.x - player.x);
-        } else if (joystick.active && (joystick.x !== 0 || joystick.y !== 0)) {
-            player.aimAngle = Math.atan2(joystick.y, joystick.x);
+            if (nearestTarget) {
+                player.aimAngle = Math.atan2(nearestTarget.y - player.y, nearestTarget.x - player.x);
+            } else if (joystick.active && (joystick.x !== 0 || joystick.y !== 0)) {
+                player.aimAngle = Math.atan2(joystick.y, joystick.x);
+            }
+        } else {
+             // オートエイムOFF時は常に移動方向を向く
+            if (joystick.active && (joystick.x !== 0 || joystick.y !== 0)) {
+                player.aimAngle = Math.atan2(joystick.y, joystick.x);
+            }
         }
 
     } else {
@@ -1791,7 +1835,25 @@ function loop() {
             player.y += (mouseY - player.y) * 0.15;
             const dx = mouseX - player.x;
             const dy = mouseY - player.y;
-            if (Math.hypot(dx, dy) > 10) player.aimAngle = Math.atan2(dy, dx);
+            
+            // PCでもオートエイムONなら自動照準、OFFならマウス方向
+            if (settings.autoAim) {
+                let nearestTarget = null;
+                let minDist = Infinity;
+                [...enemies, ...bosses].forEach(target => {
+                    if (target.markedForDeletion) return;
+                    const dist = Math.hypot(target.x - player.x, target.y - player.y);
+                    if (dist < minDist) { minDist = dist; nearestTarget = target; }
+                });
+                
+                if (nearestTarget) {
+                    player.aimAngle = Math.atan2(nearestTarget.y - player.y, nearestTarget.x - player.x);
+                } else {
+                     player.aimAngle = Math.atan2(dy, dx);
+                }
+            } else {
+                if (Math.hypot(dx, dy) > 10) player.aimAngle = Math.atan2(dy, dx);
+            }
         }
     }
     player.draw(ctx);
