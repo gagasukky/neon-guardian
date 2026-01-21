@@ -17,8 +17,9 @@
             touch-action: none; /* モバイルでのピンチズーム等を防止 */
             font-family: 'Orbitron', sans-serif;
             color: white;
+            /* 右クリックメニューを無効化するエリアであることを示すカーソル */
             cursor: crosshair;
-            user-select: none;
+            user-select: none; /* テキスト選択防止 */
             -webkit-user-select: none;
         }
 
@@ -29,6 +30,7 @@
             z-index: 1;
         }
 
+        /* UIオーバーレイ */
         #uiLayer {
             position: absolute;
             top: 0;
@@ -36,7 +38,7 @@
             width: 100%;
             height: 100%;
             z-index: 10;
-            pointer-events: none;
+            pointer-events: none; /* キャンバスへのクリックを透過させる */
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -47,6 +49,7 @@
             text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
         }
         
+        /* 警告表示用 */
         #warningLayer {
             position: absolute;
             top: 30%;
@@ -69,6 +72,7 @@
             to { opacity: 0.5; transform: scale(1.1); }
         }
 
+        /* ボムフラッシュ用 */
         #flashLayer {
             position: absolute;
             top: 0;
@@ -82,6 +86,7 @@
             transition: opacity 0.1s;
         }
 
+        /* メニュー画面 (スタート/ゲームオーバー) */
         #menuLayer {
             position: absolute;
             top: 0;
@@ -98,17 +103,19 @@
             transition: opacity 0.3s;
         }
 
+        /* モバイルコントロール用レイヤー */
         #mobileControls {
             position: absolute;
             bottom: 20px;
             left: 0;
             width: 100%;
             height: 150px;
-            z-index: 12;
-            pointer-events: none;
-            display: none;
+            z-index: 12; /* UIより上 */
+            pointer-events: none; /* エリア自体は透過 */
+            display: none; /* デフォルト非表示 */
         }
 
+        /* ジョイスティックエリア */
         #joystickZone {
             position: absolute;
             bottom: 20px;
@@ -118,10 +125,11 @@
             background: rgba(255, 255, 255, 0.1);
             border: 2px solid rgba(0, 255, 255, 0.3);
             border-radius: 50%;
-            pointer-events: auto;
+            pointer-events: auto; /* 操作可能に */
             touch-action: none;
         }
 
+        /* ジョイスティックのつまみ */
         #joystickKnob {
             position: absolute;
             top: 50%;
@@ -135,6 +143,7 @@
             box-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
         }
 
+        /* アクションボタンエリア */
         #actionZone {
             position: absolute;
             bottom: 20px;
@@ -188,6 +197,7 @@
             box-shadow: 0 0 20px #ffaa00;
         }
 
+        /* ストーリーモーダル */
         #storyModal {
             position: absolute;
             top: 0;
@@ -196,7 +206,7 @@
             height: 100%;
             z-index: 30;
             background: rgba(0, 0, 0, 0.95);
-            display: none;
+            display: none; /* 初期は非表示 */
             flex-direction: column;
             align-items: center;
             justify-content: center;
@@ -204,11 +214,13 @@
             overflow-y: auto;
         }
 
+        /* インタラクティブ要素はポインターイベントを有効化 */
         .interactive {
             pointer-events: auto;
             cursor: pointer;
         }
 
+        /* スライダーのカスタマイズ */
         input[type=range] {
             -webkit-appearance: none; 
             background: transparent; 
@@ -231,6 +243,7 @@
             border-radius: 2px;
         }
 
+        /* チェックボックス */
         input[type=checkbox] {
             accent-color: #00ffff;
             transform: scale(1.5);
@@ -256,6 +269,7 @@
             box-shadow: 0 0 30px rgba(0, 255, 255, 0.8);
         }
 
+        /* 設定トグルボタン */
         .toggle-btn {
             color: #888;
             font-size: 0.9rem;
@@ -286,42 +300,53 @@
         }
     </style>
 </head>
-<body oncontextmenu="return false;">
+<body oncontextmenu="return false;"> <!-- 右クリックメニュー無効化 -->
 
+    <!-- ゲーム描画エリア -->
     <canvas id="gameCanvas"></canvas>
     
+    <!-- ボムエフェクト -->
     <div id="flashLayer"></div>
     
+    <!-- 警告表示 -->
     <div id="warningLayer">
         <div id="warningTitle" class="warning-text">WARNING</div>
         <div id="warningSubtitle" class="text-white text-xl tracking-widest mt-2">GIANT ENEMY DETECTED</div>
     </div>
 
+    <!-- モバイルコントロール (スマホのみ表示) -->
     <div id="mobileControls">
+        <!-- 左: ジョイスティック -->
         <div id="joystickZone">
             <div id="joystickKnob"></div>
         </div>
+        <!-- 右: アクションボタン -->
         <div id="actionZone">
             <div id="mobileBombBtn" class="action-btn">BOMB</div>
             <div id="shootBtn" class="action-btn">SHOOT</div>
         </div>
     </div>
 
+    <!-- プレイ中のHUD (スコアなど) -->
     <div id="uiLayer">
         <div class="flex justify-between items-start w-full max-w-5xl mx-auto">
+            <!-- 左側: スコア & ボム -->
             <div class="hud-text text-xl md:text-2xl w-1/3">
                 SCORE: <span id="scoreDisplay">0</span>
                 <div class="text-sm text-yellow-400 mt-1">BOMB: <span id="bombDisplay">0</span> <span id="bombKeyInfo">(Right Click)</span></div>
             </div>
             
+            <!-- 中央: 時間 -->
             <div class="hud-text text-2xl md:text-3xl text-yellow-400 w-1/3 text-center font-bold">
                 <span id="timeDisplay">10:00</span>
             </div>
             
+            <!-- 右側: HP & Heat -->
             <div class="w-1/3 text-right">
                 <div class="hud-text text-xl md:text-2xl text-red-400">
                     HP: <span id="hpDisplay">100</span>%
                 </div>
+                <!-- ヒートゲージ -->
                 <div class="flex flex-col items-end mt-1">
                     <div class="w-32 md:w-48 bg-gray-800 h-2 border border-gray-600 relative overflow-hidden">
                         <div id="heatBar" class="h-full bg-orange-500 w-0 transition-all duration-75"></div>
@@ -330,6 +355,7 @@
                 </div>
             </div>
         </div>
+        <!-- 操作ガイド -->
         <div id="pcGuide" class="text-center text-gray-500 text-sm mb-4 opacity-50 hidden">
             MOUSE to Move & Aim / CLICK to Shoot / R-CLICK to Bomb
         </div>
@@ -338,6 +364,7 @@
         </div>
     </div>
 
+    <!-- ストーリー モーダル -->
     <div id="storyModal" class="interactive">
         <div class="max-w-2xl text-center">
             <h2 class="text-3xl font-bold text-cyan-400 mb-6 border-b border-cyan-800 pb-4">PROJECT: NEUTRINO</h2>
@@ -378,19 +405,22 @@
         </div>
     </div>
 
+    <!-- メニュー画面 (設定・スタート) -->
     <div id="menuLayer" class="interactive">
         <h1 class="text-4xl md:text-6xl font-bold mb-2 text-center text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600" style="text-shadow: 0 0 20px rgba(0,255,255,0.5);">
             NEON GUARDIAN
             <span class="block text-xl md:text-3xl text-cyan-200 mt-2 tracking-widest font-light" style="text-shadow: none;">PROJECT: NEUTRINO</span>
         </h1>
         
-        <div class="mb-10"></div>
+        <div class="mb-10"></div> <!-- スペーサー -->
         
+        <!-- Story & Settings トグルボタンエリア -->
         <div class="flex flex-col items-center gap-4 mb-8 w-full max-w-xs">
             <div id="storyToggle" class="toggle-btn text-cyan-400 border-cyan-400 w-full text-center py-2 border rounded">📖 ARCHIVE / STORY</div>
             <div id="settingsToggle" class="toggle-btn w-full text-center py-2 border border-gray-600 rounded">⚙ SYSTEM PARAMETERS ▼</div>
         </div>
 
+        <!-- 折り畳み式ゲーム設定 GUI -->
         <div id="settingsPanel" class="hidden bg-gray-900 border border-gray-700 p-6 rounded-lg shadow-2xl mb-8 w-11/12 max-w-md interactive transition-all duration-300 max-h-96 overflow-y-auto">
             <h2 class="text-xl text-cyan-400 mb-4 border-b border-gray-700 pb-2">SYSTEM PARAMETERS</h2>
             
@@ -410,6 +440,7 @@
                 <input type="range" id="spawnRate" min="1" max="5" value="3" class="w-full interactive">
             </div>
 
+            <!-- アイテム出現率 -->
             <div class="mb-4">
                 <label class="block text-xs text-gray-400 mb-1 flex justify-between">
                     <span>ITEM DROP RATE (アイテム出現率)</span>
@@ -434,6 +465,7 @@
                 <input type="range" id="enemySpeed" min="1" max="10" value="3" class="w-full interactive">
             </div>
 
+            <!-- 敵HP倍率 (共通) -->
             <div class="mb-4">
                 <label class="block text-xs text-gray-400 mb-1 flex justify-between">
                     <span>ENEMY HP MULTIPLIER (敵の耐久力)</span>
@@ -465,7 +497,7 @@ class SoundSystem {
         
         // BGM用のノード
         this.bgmGain = this.ctx.createGain();
-        this.bgmGain.gain.value = 0.4; // BGM音量
+        this.bgmGain.gain.value = 0.6; // BGM音量UP
         this.bgmGain.connect(this.masterGain);
         
         // ディレイエフェクト（やまびこ）
@@ -922,6 +954,7 @@ class Boss {
         this.lastShotTime = 0;
         this.shootInterval = isLastBoss ? 700 : 1500; 
         
+        // HP調整: 共通の敵HP倍率を適用
         if (isLastBoss) {
             this.maxHp = 250000 * hpMultiplier;
             this.radius = 80;
@@ -1274,8 +1307,8 @@ const autoAimToggle = document.getElementById('autoAimToggle');
 const defaultSettings = {
     spawnRate: 3, 
     bulletPower: 10,
-    enemySpeedMultiplier: 1.0, // Normal = 1.0
-    itemDropRate: 0.15, // Normal = 15%
+    enemySpeedMultiplier: 0.8, // Normal (3) -> 0.8
+    itemDropRate: 0.25, // Base Up to 25% (Normal)
     enemyHpMultiplier: 1.0, 
     autoAim: true 
 };
@@ -1493,7 +1526,7 @@ function updateUIFromSettings() {
     enemySpeedInput.value = speedIndex + 1;
     document.getElementById('speedVal').textContent = ["Crawler", "Slow", "Normal", "Fast", "Blitz", "Sonic", "Hyper", "Mach", "Light", "Warp"][speedIndex] || (speedIndex + 1);
     
-    const rateIndex = [0.05, 0.08, 0.15, 0.25, 0.40].indexOf(settings.itemDropRate);
+    const rateIndex = [0.10, 0.15, 0.25, 0.40, 0.60].indexOf(settings.itemDropRate);
     itemDropRateInput.value = rateIndex + 1;
     document.getElementById('dropVal').textContent = ["Very Low", "Low", "Normal", "High", "Abundance"][rateIndex];
 
@@ -1518,7 +1551,7 @@ enemySpeedInput.addEventListener('input', (e) => {
 });
 itemDropRateInput.addEventListener('input', (e) => {
     const val = parseInt(e.target.value);
-    const rates = [0.05, 0.08, 0.15, 0.25, 0.40]; // 確率アップ
+    const rates = [0.10, 0.15, 0.25, 0.40, 0.60]; // 確率アップ
     settings.itemDropRate = rates[val-1];
     const labels = ["Very Low", "Low", "Normal", "High", "Abundance"];
     document.getElementById('dropVal').textContent = labels[val-1];
