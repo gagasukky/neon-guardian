@@ -471,10 +471,6 @@
 <script>
 /**
  * IQ99999 エージェントによる最適化されたゲームロジック
- * * 主要コンポーネント:
- * 1. GameEngine: ゲームループと状態管理
- * 2. SoundSystem: WebAudioAPIを使用したシンセサイザー音響
- * 3. Entities: プレイヤー、敵、ボス、弾、パーティクルの管理
  */
 
 // --- 1. Sound System ---
@@ -789,7 +785,7 @@ class Enemy {
         // 弾威力が10なので、基礎HP8なら1発
         const baseHp = 8; 
         // レベルボーナスはShotLevelに応じて上昇。ShotLevel1なら0。
-        const levelBonus = (playerShotLevel - 1) * 3;
+        const levelBonus = (playerShotLevel - 1) * 2;
         // 基本HPにレベルボーナスを足し、サイズと全体設定の倍率を掛ける
         this.maxHp = (baseHp + levelBonus) * this.sizeFactor * settings.enemyHpMultiplier;
         this.hp = this.maxHp;
@@ -1005,7 +1001,6 @@ class PowerUp {
             this.x += dx * 0.03;
             this.y += dy * 0.03;
         }
-        this.angle += 0.05;
     }
 
     draw(ctx) {
