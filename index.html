@@ -277,6 +277,20 @@
             color: #00ffff;
             border-bottom-color: #00ffff;
         }
+        
+        .reset-btn {
+            font-size: 0.8rem;
+            color: #ffaa00;
+            border: 1px solid #ffaa00;
+            padding: 4px 12px;
+            border-radius: 4px;
+            margin-top: 10px;
+            transition: all 0.2s;
+        }
+        .reset-btn:hover {
+            background: #ffaa00;
+            color: black;
+        }
     </style>
 </head>
 <body oncontextmenu="return false;"> <!-- 右クリックメニュー無効化 -->
@@ -362,12 +376,12 @@
                 <div class="border border-red-500 p-3 rounded bg-red-900 bg-opacity-20">
                     <div class="text-red-400 font-bold text-lg mb-1">電子ニュートリノ</div>
                     <div class="text-red-300">νe (POWER)</div>
-                    <div class="text-gray-400 mt-2 text-xs">荷電カレント相互作用を増幅。<br>攻撃出力を最大化する。</div>
+                    <div class="text-gray-400 mt-2 text-xs">攻撃範囲拡大。<br>拡散砲による広域制圧。</div>
                 </div>
                 <div class="border border-cyan-500 p-3 rounded bg-cyan-900 bg-opacity-20">
                     <div class="text-cyan-400 font-bold text-lg mb-1">ミューニュートリノ</div>
                     <div class="text-cyan-300">νμ (SPEED)</div>
-                    <div class="text-gray-400 mt-2 text-xs">質量状態の変異を利用。<br>時間知覚と冷却効率を加速。</div>
+                    <div class="text-gray-400 mt-2 text-xs">弾速＆冷却効率向上。<br>高速連射による一点突破。</div>
                 </div>
                 <div class="border border-green-500 p-3 rounded bg-green-900 bg-opacity-20">
                     <div class="text-green-400 font-bold text-lg mb-1">タウニュートリノ</div>
@@ -400,8 +414,9 @@
         </div>
 
         <!-- 折り畳み式ゲーム設定 GUI -->
-        <div id="settingsPanel" class="hidden bg-gray-900 border border-gray-700 p-6 rounded-lg shadow-2xl mb-8 w-11/12 max-w-md interactive transition-all duration-300">
+        <div id="settingsPanel" class="hidden bg-gray-900 border border-gray-700 p-6 rounded-lg shadow-2xl mb-8 w-11/12 max-w-md interactive transition-all duration-300 max-h-96 overflow-y-auto">
             <h2 class="text-xl text-cyan-400 mb-4 border-b border-gray-700 pb-2">SYSTEM PARAMETERS</h2>
+            
             <div class="mb-4">
                 <label class="block text-xs text-gray-400 mb-1 flex justify-between">
                     <span>ENEMY SPAWN RATE (初期出現率)</span>
@@ -409,6 +424,7 @@
                 </label>
                 <input type="range" id="spawnRate" min="1" max="5" value="2" class="w-full interactive">
             </div>
+
             <!-- アイテム出現率 -->
             <div class="mb-4">
                 <label class="block text-xs text-gray-400 mb-1 flex justify-between">
@@ -417,6 +433,7 @@
                 </label>
                 <input type="range" id="itemDropRate" min="1" max="5" value="4" class="w-full interactive">
             </div>
+
             <div class="mb-4">
                 <label class="block text-xs text-gray-400 mb-1 flex justify-between">
                     <span>BULLET POWER (弾の威力)</span>
@@ -424,12 +441,26 @@
                 </label>
                 <input type="range" id="bulletPower" min="5" max="50" step="5" value="10" class="w-full interactive">
             </div>
-            <div class="mb-0">
+
+            <div class="mb-4">
                 <label class="block text-xs text-gray-400 mb-1 flex justify-between">
                     <span>ENEMY SPEED (敵の速度)</span>
                     <span id="speedVal" class="text-white">Normal</span>
                 </label>
                 <input type="range" id="enemySpeed" min="1" max="10" value="4" class="w-full interactive">
+            </div>
+
+            <!-- ボスHP倍率 -->
+            <div class="mb-4">
+                <label class="block text-xs text-gray-400 mb-1 flex justify-between">
+                    <span>BOSS HP MULTIPLIER (ボスの硬さ)</span>
+                    <span id="bossHpVal" class="text-white">x1.0</span>
+                </label>
+                <input type="range" id="bossHp" min="1" max="10" value="2" class="w-full interactive">
+            </div>
+
+            <div class="text-center">
+                <button id="resetSettingsBtn" class="reset-btn">RESET TO DEFAULT</button>
             </div>
         </div>
 
@@ -617,10 +648,10 @@ class Player {
         this.hp = 100;
         this.lastShotTime = 0;
         
-        // 調整: 初期発射間隔を遅く
         this.shootInterval = 250; 
         
-        this.shotLevel = 1;
+        this.shotLevel = 1; // 弾数（拡散数）
+        this.bulletSpeed = 12; // 弾速
         this.aimAngle = -Math.PI / 2;
         this.bombs = 0; 
         
@@ -629,7 +660,7 @@ class Player {
         this.maxHeat = 100;
         this.overheated = false;
         this.heatPerShot = 10;
-        this.coolingRate = 0.8; // 毎フレーム冷却値
+        this.coolingRate = 0.8; 
     }
 
     draw(ctx) {
@@ -671,10 +702,10 @@ class Player {
 }
 
 class Bullet {
-    constructor(x, y, angle) {
+    constructor(x, y, angle, speed) {
         this.x = x;
         this.y = y;
-        this.speed = 12;
+        this.speed = speed;
         this.vx = Math.cos(angle) * this.speed;
         this.vy = Math.sin(angle) * this.speed;
         this.radius = 4;
@@ -747,13 +778,21 @@ class Enemy {
         this.y = y;
         this.player = player;
         this.speed = (Math.random() * 2 + 1) * speedMultiplier;
-        this.radius = 12 + Math.random() * 10;
+        
+        // サイズのランダム化 (10~25)
+        this.radius = 10 + Math.random() * 15;
+        this.sizeFactor = this.radius / 10; // 1.0 ~ 2.5倍
+        
         this.markedForDeletion = false;
         
-        // HP調整
-        const baseHp = 6; 
-        const levelBonus = playerShotLevel * 2;
-        this.maxHp = baseHp + levelBonus;
+        // HP調整ロジック刷新
+        // 基礎HP(15) + (ShotLevel * 15) にサイズ係数を掛ける
+        // ShotLevel 1: (15 + 15) * 1.0 = 30 (3発) 〜 * 2.5 = 75 (8発)
+        // ShotLevel 10: (15 + 150) * 1.0 = 165 (17発) ... 硬い
+        // 弾威力が10なので、そこそこ撃ち込む必要がある
+        const baseHp = 15; 
+        const levelBonus = playerShotLevel * 15;
+        this.maxHp = (baseHp + levelBonus) * this.sizeFactor;
         this.hp = this.maxHp;
 
         const hue = Math.random() * 60 + 300; 
@@ -767,8 +806,10 @@ class Enemy {
         const distance = Math.hypot(dx, dy);
         
         if (distance > 0) {
-            this.x += (dx / distance) * this.speed;
-            this.y += (dy / distance) * this.speed;
+            // 大きい敵は少し遅く
+            const speedMod = 1 / Math.sqrt(this.sizeFactor);
+            this.x += (dx / distance) * this.speed * speedMod;
+            this.y += (dy / distance) * this.speed * speedMod;
         }
         this.angle += 0.1;
     }
@@ -798,7 +839,7 @@ class Enemy {
 }
 
 class Boss {
-    constructor(x, y, player, spawnCount, isLastBoss = false) {
+    constructor(x, y, player, spawnCount, isLastBoss = false, hpMultiplier = 1.0) {
         this.x = x;
         this.y = y;
         this.player = player;
@@ -808,13 +849,16 @@ class Boss {
         this.lastShotTime = 0;
         this.shootInterval = isLastBoss ? 700 : 1500; 
         
+        // HP調整: 桁違いに増やす
+        // 初期ボス: 30000 * 1.0 = 30000 (弾威力10で3000発) -> 2分間で削り切る目標
+        // ラスボス: 250000 (25万)
         if (isLastBoss) {
-            this.maxHp = 25000;
+            this.maxHp = 250000 * hpMultiplier;
             this.radius = 80;
             this.color = '#ff0000'; 
             this.speed = 1.0; 
         } else {
-            this.maxHp = 500 * spawnCount; 
+            this.maxHp = (30000 + (spawnCount * 10000)) * hpMultiplier; 
             this.radius = 50;
             this.color = '#ff0055'; 
             this.speed = 1.2;
@@ -964,6 +1008,7 @@ class PowerUp {
             this.x += dx * 0.03;
             this.y += dy * 0.03;
         }
+        this.angle += 0.05;
     }
 
     draw(ctx) {
@@ -1151,17 +1196,23 @@ const mobileBombBtn = document.getElementById('mobileBombBtn');
 // Settings Elements
 const settingsToggle = document.getElementById('settingsToggle');
 const settingsPanel = document.getElementById('settingsPanel');
+const resetSettingsBtn = document.getElementById('resetSettingsBtn');
 const spawnRateInput = document.getElementById('spawnRate');
 const bulletPowerInput = document.getElementById('bulletPower');
 const enemySpeedInput = document.getElementById('enemySpeed');
 const itemDropRateInput = document.getElementById('itemDropRate');
+const bossHpInput = document.getElementById('bossHp');
 
-let settings = {
+// 初期設定値
+const defaultSettings = {
     spawnRate: 2, 
     bulletPower: 10,
     enemySpeedMultiplier: 1.0,
-    itemDropRate: 0.10
+    itemDropRate: 0.10,
+    bossHpMultiplier: 2.0 // 初期値は2倍
 };
+
+let settings = { ...defaultSettings };
 
 let gameActive = false;
 let score = 0;
@@ -1183,7 +1234,7 @@ let lastBossSpawned = false;
 // Mobile Input State
 let joystick = { x: 0, y: 0, active: false, id: null, startX: 0, startY: 0 };
 let mobileShootActive = false;
-let canvasScale = 1; // 追加: キャンバスのスケール比率
+let canvasScale = 1; 
 
 let player;
 let bullets = [];
@@ -1197,16 +1248,11 @@ let bombItems = [];
 const soundSystem = new SoundSystem();
 
 function resize() {
-    // 画面サイズ取得
     const width = window.innerWidth;
     const height = window.innerHeight;
-    
-    // デバイス判定（resize時にもチェック）
     checkDevice();
 
     if (isMobile) {
-        // モバイルの場合、視野を確保するために内部解像度を上げる
-        // 短辺が最低でも 600px になるようにスケール
         const minSide = Math.min(width, height);
         const targetMinSide = 600; 
         canvasScale = Math.max(1, targetMinSide / minSide);
@@ -1214,29 +1260,22 @@ function resize() {
         canvasScale = 1;
     }
 
-    // Canvas内部解像度を設定
     canvas.width = width * canvasScale;
     canvas.height = height * canvasScale;
-
-    // CSSで画面いっぱいに表示（見た目のサイズ）
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
 
-    // プレイヤー位置を画面中央へ再配置
     if (player) {
         player.x = canvas.width / 2;
         player.y = canvas.height / 2;
     }
 }
 window.addEventListener('resize', resize);
-// 初回呼び出しは initGame 等の後でも良いが、stars初期化前に行う
-// resize(); -> これは下のコードフローで呼ばれているのでOK
 
 for (let i = 0; i < 100; i++) {
     stars.push(new Star(canvas.width, canvas.height));
 }
 
-// デバイス判定とUI切り替え
 function checkDevice() {
     isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     const pcGuide = document.getElementById('pcGuide');
@@ -1254,14 +1293,12 @@ function checkDevice() {
         mobileControls.style.display = 'none';
     }
 }
-// checkDevice(); -> resize内で呼ぶので削除してもよいが、即時判定のために残す
 checkDevice();
-resize(); // ここでresizeを呼んで canvasScale を確定させる
+resize(); 
 
 // PC Mouse Controls
 window.addEventListener('mousemove', (e) => { 
     if (!isMobile) {
-        // PCの場合は canvasScale は 1 なのでそのまま
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
         mouseX = Math.max(0, Math.min(canvas.width, clientX));
@@ -1282,8 +1319,7 @@ window.addEventListener('contextmenu', (e) => {
     }
 });
 
-// Mobile Controls Implementation
-// Joystick Logic
+// Mobile Controls
 joystickZone.addEventListener('touchstart', (e) => {
     e.preventDefault();
     const touch = e.changedTouches[0];
@@ -1301,12 +1337,11 @@ joystickZone.addEventListener('touchmove', (e) => {
     for (let i = 0; i < e.changedTouches.length; i++) {
         if (e.changedTouches[i].identifier === joystick.id) {
             const touch = e.changedTouches[i];
-            const maxDist = 40; // Joystick radius
+            const maxDist = 40; 
             let dx = touch.clientX - joystick.startX;
             let dy = touch.clientY - joystick.startY;
             const dist = Math.hypot(dx, dy);
             
-            // Normalize input
             if (dist > maxDist) {
                 dx = (dx / dist) * maxDist;
                 dy = (dy / dist) * maxDist;
@@ -1340,7 +1375,6 @@ function updateJoystickVisual(x, y) {
     joystickKnob.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
 }
 
-// Mobile Buttons
 shootBtn.addEventListener('touchstart', (e) => {
     e.preventDefault();
     mobileShootActive = true;
@@ -1361,7 +1395,7 @@ mobileBombBtn.addEventListener('touchstart', (e) => {
 }, {passive: false});
 
 
-// ... UI Logic (Story, Settings) ...
+// UI Logic
 storyToggle.addEventListener('click', () => { storyModal.style.display = 'flex'; });
 closeStoryBtn.addEventListener('click', () => { storyModal.style.display = 'none'; });
 settingsToggle.addEventListener('click', () => {
@@ -1373,37 +1407,69 @@ settingsToggle.addEventListener('click', () => {
         settingsToggle.innerText = 'SETTINGS ▼';
     }
 });
+
+// Settings Handlers
+function updateUIFromSettings() {
+    spawnRateInput.value = settings.spawnRate;
+    document.getElementById('spawnVal').textContent = ["Very Slow", "Slow", "Normal", "Fast", "Chaos"][settings.spawnRate-1];
+    
+    bulletPowerInput.value = settings.bulletPower;
+    document.getElementById('powerVal').textContent = settings.bulletPower;
+    
+    const speedIndex = Math.round((settings.enemySpeedMultiplier - 0.4) / 0.2);
+    enemySpeedInput.value = speedIndex + 1;
+    document.getElementById('speedVal').textContent = ["Crawler", "Slow", "Normal", "Fast", "Blitz", "Sonic", "Hyper", "Mach", "Light", "Warp"][speedIndex] || (speedIndex + 1);
+    
+    const rateIndex = [0.02, 0.04, 0.06, 0.10, 0.20].indexOf(settings.itemDropRate);
+    itemDropRateInput.value = rateIndex + 1;
+    document.getElementById('dropVal').textContent = ["Very Low", "Low", "Normal", "High", "Abundance"][rateIndex];
+
+    bossHpInput.value = Math.round(settings.bossHpMultiplier * 2); // 0.5 to 5.0 map to 1 to 10
+    document.getElementById('bossHpVal').textContent = `x${settings.bossHpMultiplier}`;
+}
+
 spawnRateInput.addEventListener('input', (e) => {
     settings.spawnRate = parseInt(e.target.value);
-    document.getElementById('spawnVal').textContent = ["Very Slow", "Slow", "Normal", "Fast", "Chaos"][settings.spawnRate-1];
+    updateUIFromSettings();
 });
 bulletPowerInput.addEventListener('input', (e) => {
     settings.bulletPower = parseInt(e.target.value);
-    document.getElementById('powerVal').textContent = settings.bulletPower;
+    updateUIFromSettings();
 });
 enemySpeedInput.addEventListener('input', (e) => {
     const val = parseInt(e.target.value);
     settings.enemySpeedMultiplier = val * 0.2 + 0.2; 
-    document.getElementById('speedVal').textContent = ["Crawler", "Slow", "Normal", "Fast", "Blitz", "Sonic", "Hyper", "Mach", "Light", "Warp"][val-1] || val;
+    updateUIFromSettings();
 });
 itemDropRateInput.addEventListener('input', (e) => {
     const val = parseInt(e.target.value);
     settings.itemDropRate = [0.02, 0.04, 0.06, 0.10, 0.20][val-1];
-    document.getElementById('dropVal').textContent = ["Very Low", "Low", "Normal", "High", "Abundance"][val-1];
+    updateUIFromSettings();
+});
+bossHpInput.addEventListener('input', (e) => {
+    const val = parseInt(e.target.value);
+    settings.bossHpMultiplier = val * 0.5; // 0.5x to 5.0x
+    updateUIFromSettings();
 });
 
+resetSettingsBtn.addEventListener('click', () => {
+    settings = { ...defaultSettings };
+    updateUIFromSettings();
+});
+
+// Initialize Settings UI
+updateUIFromSettings();
+
+
 function updateMousePos(e) {
-    // タッチ操作用の座標更新（スケール考慮）
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     
-    // スケールを適用してゲーム内座標に変換
     mouseX = Math.max(0, Math.min(canvas.width, clientX * canvasScale));
     
-    // モバイルの場合は指で隠れないように少し上にオフセット
     let offsetY = 0;
     if (isMobile && e.touches) {
-        offsetY = -50 * canvasScale; // オフセットもスケール倍
+        offsetY = -50 * canvasScale; 
     }
     mouseY = Math.max(0, Math.min(canvas.height, (clientY * canvasScale) + offsetY));
 }
@@ -1416,24 +1482,21 @@ function initGame() {
     timeEl.innerText = "10:00";
     timeEl.style.color = "#fbbf24"; 
     
-    // リサイズ処理を再度走らせて画面サイズを確定
     resize();
     
     player = new Player(canvas.width / 2, canvas.height / 2);
     bombEl.innerText = player.bombs;
-    updateHeatUI(); // 初期化
+    updateHeatUI(); 
 
     bullets = [];
-    enemyBullets = []; // 初期化
+    enemyBullets = []; 
     enemies = [];
     bosses = [];
     particles = [];
     powerUps = []; 
-    bombItems = []; // 初期化
+    bombItems = []; 
     frameCount = 0;
     gameStartTime = Date.now();
-    
-    // Boss reset
     nextBossTime = BOSS_INTERVAL;
     bossSpawnCount = 0;
     lastBossSpawned = false;
@@ -1453,14 +1516,11 @@ function useBomb() {
     bombEl.innerText = player.bombs;
     soundSystem.playBomb();
     
-    // フラッシュ演出
     flashLayer.style.opacity = '0.8';
     setTimeout(() => flashLayer.style.opacity = '0', 100);
     
-    // 画面上の敵を全滅（ボスにはダメージ）
     enemies.forEach(e => {
         e.markedForDeletion = true;
-        // 爆発エフェクト
         for (let i = 0; i < 5; i++) particles.push(new Particle(e.x, e.y, e.color));
         score += 100;
     });
@@ -1471,12 +1531,11 @@ function useBomb() {
     });
     
     bosses.forEach(b => {
-        // ボスには大ダメージ (最大HPの10% + 固定2000)
-        const damage = (b.maxHp * 0.1) + 2000;
+        // ボムダメージ調整: 現在HPの20% + 固定2000
+        const damage = (b.hp * 0.2) + 2000;
         b.hp -= damage;
         showFloatingText(b.x, b.y, "BOMB HIT!", "#ff0000");
         
-        // ボス撃破判定はループ内の衝突処理か更新処理に任せる
         if (b.hp <= 0) {
             b.markedForDeletion = true;
             score += 5000 * b.spawnCount;
@@ -1487,7 +1546,6 @@ function useBomb() {
                 score += 50000;
                 gameClear();
             } else {
-                // 通常ボスならボムドロップ (再生産可能)
                 bombItems.push(new BombItem(b.x, b.y));
             }
         }
@@ -1508,13 +1566,11 @@ function spawnEnemy() {
         case 3: x = -buffer; y = Math.random() * canvas.height; break;
     }
     
-    // HP調整用パラメータとして shotLevel を渡す
     enemies.push(new Enemy(x, y, player, settings.enemySpeedMultiplier, player.shotLevel));
 }
 
 function spawnBoss(isLastBoss = false) {
     if (!isLastBoss) bossSpawnCount++;
-    
     const edge = Math.floor(Math.random() * 4); 
     let x, y;
     const buffer = 80;
@@ -1524,174 +1580,108 @@ function spawnBoss(isLastBoss = false) {
         case 2: x = canvas.width/2; y = canvas.height + buffer; break;
         case 3: x = -buffer; y = canvas.height/2; break;
     }
-    
-    bosses.push(new Boss(x, y, player, bossSpawnCount, isLastBoss));
-    
-    // 警告演出
+    bosses.push(new Boss(x, y, player, bossSpawnCount, isLastBoss, settings.bossHpMultiplier));
     if (isLastBoss) {
-        warningTitle.innerText = "FINAL WARNING";
-        warningTitle.style.color = "#ff0000";
-        warningSubtitle.innerText = "OMEGA GUARDIAN APPROACHING";
-        soundSystem.playBossSpawn(true);
+        warningTitle.innerText = "FINAL WARNING"; warningTitle.style.color = "#ff0000"; warningSubtitle.innerText = "OMEGA GUARDIAN APPROACHING"; soundSystem.playBossSpawn(true);
     } else {
-        warningTitle.innerText = "WARNING";
-        warningTitle.style.color = "#ff0055";
-        warningSubtitle.innerText = "GIANT ENEMY DETECTED";
-        soundSystem.playBossSpawn(false);
+        warningTitle.innerText = "WARNING"; warningTitle.style.color = "#ff0055"; warningSubtitle.innerText = "GIANT ENEMY DETECTED"; soundSystem.playBossSpawn(false);
     }
-    
     warningLayer.style.display = 'block';
     setTimeout(() => { warningLayer.style.display = 'none'; }, 4000);
 }
 
 function checkCollisions() {
-    // 1. Bullets hit Enemies & Bosses
     bullets.forEach(bullet => {
-        // vs Enemies
         enemies.forEach(enemy => {
             if (bullet.markedForDeletion || enemy.markedForDeletion) return;
             const dist = Math.hypot(bullet.x - enemy.x, bullet.y - enemy.y);
             if (dist - enemy.radius - bullet.radius < 1) {
                 bullet.markedForDeletion = true;
-                
-                // ダメージ処理
                 enemy.hp -= settings.bulletPower;
-                // ヒットエフェクト（小）
                 particles.push(new Particle(enemy.x, enemy.y, '#ffffff'));
-                
                 if (enemy.hp <= 0) {
                     enemy.markedForDeletion = true; 
-                    // 確率変更: 設定値を使用
                     if (Math.random() < settings.itemDropRate) powerUps.push(new PowerUp(enemy.x, enemy.y));
                     for (let i = 0; i < 8; i++) particles.push(new Particle(enemy.x, enemy.y, enemy.color));
-                    score += 100;
-                    scoreEl.innerText = score;
-                    soundSystem.playExplosion();
+                    score += 100; scoreEl.innerText = score; soundSystem.playExplosion();
                 }
             }
         });
-        
-        // vs Bosses
         bosses.forEach(boss => {
             if (bullet.markedForDeletion || boss.markedForDeletion) return;
             const dist = Math.hypot(bullet.x - boss.x, bullet.y - boss.y);
             if (dist - boss.radius - bullet.radius < 1) {
                 bullet.markedForDeletion = true;
                 boss.hp -= settings.bulletPower;
-                
-                // ヒットエフェクト
                 particles.push(new Particle(bullet.x, bullet.y, '#ffaa00'));
-                
                 if (boss.hp <= 0) {
-                    boss.markedForDeletion = true;
-                    soundSystem.playExplosion();
-                    
-                    // ボス撃破で大量パーティクル
+                    boss.markedForDeletion = true; soundSystem.playExplosion();
                     for (let i = 0; i < 50; i++) particles.push(new Particle(boss.x, boss.y, boss.color));
-                    
-                    if (boss.isLastBoss) {
-                        // ラスボス撃破 -> ゲームクリア
-                        score += 50000;
-                        scoreEl.innerText = score;
-                        gameClear();
-                    } else {
-                        // 通常ボス撃破 -> ボムアイテム確定ドロップ
-                        score += 5000 * boss.spawnCount;
-                        scoreEl.innerText = score;
-                        bombItems.push(new BombItem(boss.x, boss.y)); // ボム出現
-                    }
+                    if (boss.isLastBoss) { score += 50000; scoreEl.innerText = score; gameClear(); }
+                    else { score += 5000 * boss.spawnCount; scoreEl.innerText = score; bombItems.push(new BombItem(boss.x, boss.y)); }
                 }
             }
         });
     });
 
-    // 2. Enemy/Boss/EnemyBullet hit Player
-    // vs Enemies
     enemies.forEach(enemy => {
         if (enemy.markedForDeletion) return;
         const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
         if (dist - enemy.radius - player.radius < 1) {
-            enemy.markedForDeletion = true;
-            player.hp -= 20; 
-            updateHpUI();
-            soundSystem.playExplosion();
-            screenShake();
+            enemy.markedForDeletion = true; player.hp -= 20; updateHpUI(); soundSystem.playExplosion(); screenShake();
             if (player.hp <= 0) gameOver();
         }
     });
     
-    // vs Bosses
     bosses.forEach(boss => {
         if (boss.markedForDeletion) return;
         const dist = Math.hypot(player.x - boss.x, player.y - boss.y);
         if (dist - boss.radius - player.radius < 1) {
-            // ボスと接触: 大ダメージ + ノックバック
-            player.hp -= 50;
-            updateHpUI();
-            soundSystem.playExplosion();
-            screenShake();
-            
-            // プレイヤーを弾き飛ばす
+            player.hp -= 50; updateHpUI(); soundSystem.playExplosion(); screenShake();
             const angle = Math.atan2(player.y - boss.y, player.x - boss.x);
-            player.x += Math.cos(angle) * 50;
-            player.y += Math.sin(angle) * 50;
-
+            player.x += Math.cos(angle) * 50; player.y += Math.sin(angle) * 50;
             if (player.hp <= 0) gameOver();
         }
     });
 
-    // vs Enemy Bullets
     enemyBullets.forEach(eb => {
         if (eb.markedForDeletion) return;
         const dist = Math.hypot(player.x - eb.x, player.y - eb.y);
         if (dist - eb.radius - player.radius < 1) {
-            eb.markedForDeletion = true;
-            player.hp -= 15; // 被弾ダメージ
-            updateHpUI();
-            soundSystem.playExplosion(); 
-            
+            eb.markedForDeletion = true; player.hp -= 15; updateHpUI(); soundSystem.playExplosion(); 
             for (let i = 0; i < 5; i++) particles.push(new Particle(player.x, player.y, '#ff0000'));
-            
             if (player.hp <= 0) gameOver();
         }
     });
 
-    // 3. PowerUp Collection
     powerUps.forEach(pu => {
         const dist = Math.hypot(player.x - pu.x, player.y - pu.y);
         if (dist - pu.radius - player.radius < 5) {
             pu.markedForDeletion = true;
-            
-            // タイプに応じた効果
-            if (pu.type === 0) { // POWER
-                player.shotLevel++;
-                showFloatingText(player.x, player.y, "POWER UP!", "#ffaa00");
-                soundSystem.playPowerUp();
-            } else if (pu.type === 1) { // SPEED
-                player.shootInterval = Math.max(50, player.shootInterval * 0.9); // 10%短縮
-                // 変更: 発熱量も減らす (連射してもオーバーヒートしにくくする)
-                player.heatPerShot = Math.max(2, player.heatPerShot * 0.9);
-                
-                showFloatingText(player.x, player.y, "SPEED UP!", "#00ffff");
-                soundSystem.playPowerUp();
-            } else if (pu.type === 2) { // HEAL
-                player.hp = Math.min(100, player.hp + 30);
-                updateHpUI();
-                showFloatingText(player.x, player.y, "HEAL!", "#00ff00");
-                soundSystem.playHeal();
+            if (pu.type === 0) { 
+                player.shotLevel++; 
+                showFloatingText(player.x, player.y, "POWER UP!", "#ffaa00"); 
+                soundSystem.playPowerUp(); 
+            }
+            else if (pu.type === 1) { 
+                player.bulletSpeed = Math.min(25, player.bulletSpeed + 2); // 弾速アップ
+                player.coolingRate += 0.2; // 冷却アップ
+                showFloatingText(player.x, player.y, "SPEED UP!", "#00ffff"); 
+                soundSystem.playPowerUp(); 
+            }
+            else if (pu.type === 2) { 
+                player.hp = Math.min(100, player.hp + 30); 
+                updateHpUI(); 
+                showFloatingText(player.x, player.y, "HEAL!", "#00ff00"); 
+                soundSystem.playHeal(); 
             }
         }
     });
 
-    // 4. BombItem Collection
     bombItems.forEach(bi => {
         const dist = Math.hypot(player.x - bi.x, player.y - bi.y);
         if (dist - bi.radius - player.radius < 5) {
-            bi.markedForDeletion = true;
-            player.bombs++;
-            bombEl.innerText = player.bombs;
-            showFloatingText(player.x, player.y, "BOMB GET!", "#ff0000");
-            soundSystem.playPowerUp(); // 音は流用
+            bi.markedForDeletion = true; player.bombs++; bombEl.innerText = player.bombs; showFloatingText(player.x, player.y, "BOMB GET!", "#ff0000"); soundSystem.playPowerUp();
         }
     });
 }
@@ -1708,14 +1698,13 @@ function updateHeatUI() {
     heatBar.style.width = `${percent}%`;
     
     if (player.overheated) {
-        heatBar.style.backgroundColor = '#ef4444'; // Red-500
+        heatBar.style.backgroundColor = '#ef4444'; 
         heatBar.parentElement.classList.add('border-red-500');
         heatLabel.innerText = "OVERHEAT!";
         heatLabel.classList.add('text-red-500', 'animate-pulse');
     } else {
-        // 通常時: 熱量に応じて色変化 (Yellow -> Orange -> Red)
-        if (percent > 80) heatBar.style.backgroundColor = '#f97316'; // Orange-500
-        else heatBar.style.backgroundColor = '#eab308'; // Yellow-500
+        if (percent > 80) heatBar.style.backgroundColor = '#f97316'; 
+        else heatBar.style.backgroundColor = '#eab308'; 
         
         heatBar.parentElement.classList.remove('border-red-500');
         heatLabel.innerText = "HEAT";
@@ -1731,45 +1720,23 @@ function screenShake() {
 
 function showFloatingText(x, y, text, color = '#00ff00') {
     const floatText = document.createElement('div');
-    floatText.innerText = text;
-    floatText.style.position = 'absolute';
-    floatText.style.left = `${x}px`;
-    floatText.style.top = `${y}px`;
-    floatText.style.color = color;
-    floatText.style.fontWeight = 'bold';
-    floatText.style.pointerEvents = 'none';
-    floatText.style.animation = 'fadeOut 1s forwards';
+    floatText.innerText = text; floatText.style.position = 'absolute'; floatText.style.left = `${x}px`; floatText.style.top = `${y}px`; floatText.style.color = color; floatText.style.fontWeight = 'bold'; floatText.style.pointerEvents = 'none'; floatText.style.animation = 'fadeOut 1s forwards';
     document.body.appendChild(floatText);
     setTimeout(() => floatText.remove(), 1000);
 }
 
 function gameClear() {
-    gameActive = false;
-    soundSystem.playClear();
-    if (score > highScore) {
-        highScore = score;
-        highScoreDisplay.innerText = `HIGH SCORE: ${highScore}`;
-        localStorage.setItem('neon_guardian_highscore', highScore);
-    }
-    menuLayer.style.display = 'flex';
-    setTimeout(() => menuLayer.style.opacity = '1', 10);
-    document.querySelector('#menuLayer h1').innerText = "MISSION CLEAR";
-    document.querySelector('#menuLayer h1').className = "text-4xl md:text-6xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-600";
-    document.querySelector('#startBtn').innerText = "PLAY AGAIN";
+    gameActive = false; soundSystem.playClear();
+    if (score > highScore) { highScore = score; highScoreDisplay.innerText = `HIGH SCORE: ${highScore}`; localStorage.setItem('neon_guardian_highscore', highScore); }
+    menuLayer.style.display = 'flex'; setTimeout(() => menuLayer.style.opacity = '1', 10);
+    document.querySelector('#menuLayer h1').innerText = "MISSION CLEAR"; document.querySelector('#menuLayer h1').className = "text-4xl md:text-6xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-600"; document.querySelector('#startBtn').innerText = "PLAY AGAIN";
 }
 
 function gameOver() {
     gameActive = false;
-    if (score > highScore) {
-        highScore = score;
-        highScoreDisplay.innerText = `HIGH SCORE: ${highScore}`;
-        localStorage.setItem('neon_guardian_highscore', highScore);
-    }
-    menuLayer.style.display = 'flex';
-    setTimeout(() => menuLayer.style.opacity = '1', 10);
-    document.querySelector('#menuLayer h1').innerText = "GAME OVER";
-    document.querySelector('#menuLayer h1').className = "text-4xl md:text-6xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-pink-600";
-    document.querySelector('#startBtn').innerText = "RETRY MISSION";
+    if (score > highScore) { highScore = score; highScoreDisplay.innerText = `HIGH SCORE: ${highScore}`; localStorage.setItem('neon_guardian_highscore', highScore); }
+    menuLayer.style.display = 'flex'; setTimeout(() => menuLayer.style.opacity = '1', 10);
+    document.querySelector('#menuLayer h1').innerText = "GAME OVER"; document.querySelector('#menuLayer h1').className = "text-4xl md:text-6xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-pink-600"; document.querySelector('#startBtn').innerText = "RETRY MISSION";
 }
 
 function formatTime(ms) {
@@ -1787,72 +1754,46 @@ function loop() {
     const elapsed = Date.now() - gameStartTime;
     let remaining = TIME_LIMIT - elapsed;
     
-    // Time & Boss Logic
     if (remaining <= 0) {
-        // ラスボスフェーズ
-        if (!lastBossSpawned) {
-            spawnBoss(true); // ラスボス出現
-            lastBossSpawned = true;
-        }
-        timeEl.innerText = "FINAL BATTLE";
-        timeEl.style.color = "red";
+        if (!lastBossSpawned) { spawnBoss(true); lastBossSpawned = true; }
+        timeEl.innerText = "FINAL BATTLE"; timeEl.style.color = "red";
     } else {
-        // 通常フェーズ
         timeEl.innerText = formatTime(remaining);
-        
-        // Regular Boss Spawning
-        if (elapsed >= nextBossTime) {
-            spawnBoss(false);
-            nextBossTime += BOSS_INTERVAL;
-        }
+        if (elapsed >= nextBossTime) { spawnBoss(false); nextBossTime += BOSS_INTERVAL; }
     }
 
     ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    stars.forEach(star => {
-        star.update(canvas.width, canvas.height, 10);
-        star.draw(ctx, canvas.width, canvas.height);
-    });
+    stars.forEach(star => { star.update(canvas.width, canvas.height, 10); star.draw(ctx, canvas.width, canvas.height); });
 
-    // Player Movement & Aiming
+    // Player Movement
     if (isMobile) {
-        // 1. 移動処理
         if (joystick.active) {
             const speed = 5 * canvasScale; 
             player.x += joystick.x * speed;
             player.y += joystick.y * speed;
             
-            // 画面端判定
             player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
             player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
         }
 
-        // 2. オートエイム処理 (モバイル専用)
         let nearestTarget = null;
         let minDist = Infinity;
-
-        // 敵とボスの両方を対象に最短距離を探索
         const allTargets = [...enemies, ...bosses];
         allTargets.forEach(target => {
             if (target.markedForDeletion) return;
             const dist = Math.hypot(target.x - player.x, target.y - player.y);
-            if (dist < minDist) {
-                minDist = dist;
-                nearestTarget = target;
-            }
+            if (dist < minDist) { minDist = dist; nearestTarget = target; }
         });
 
         if (nearestTarget) {
-            // ターゲットがいればそちらを向く
             player.aimAngle = Math.atan2(nearestTarget.y - player.y, nearestTarget.x - player.x);
         } else if (joystick.active && (joystick.x !== 0 || joystick.y !== 0)) {
-            // ターゲットがいなければ進行方向を向く
             player.aimAngle = Math.atan2(joystick.y, joystick.x);
         }
 
     } else {
-        // PC: マウス追従
         if (mouseX !== 0 && mouseY !== 0) {
             player.x += (mouseX - player.x) * 0.15;
             player.y += (mouseY - player.y) * 0.15;
@@ -1863,71 +1804,51 @@ function loop() {
     }
     player.draw(ctx);
 
-    // Heat Logic Update
+    // Heat Logic
     if (!player.overheated) {
-        // 撃っていない時は冷却
         if (!(isMobile ? mobileShootActive : isMouseDown)) {
             player.heat = Math.max(0, player.heat - player.coolingRate);
         }
     } else {
-        // オーバーヒート中は冷却のみ
         player.heat = Math.max(0, player.heat - player.coolingRate);
-        if (player.heat <= 0) {
-            player.overheated = false; // 復帰
-        }
+        if (player.heat <= 0) player.overheated = false;
     }
     updateHeatUI();
 
-    const isMobileInput = isMobile && mobileShootActive;
-    const isPCInput = !isMobile && isMouseDown;
-    const shooting = (isMobileInput || isPCInput) && !player.overheated;
+    const shooting = (isMobile ? mobileShootActive : isMouseDown) && !player.overheated;
     
     if (shooting) {
         const now = Date.now();
         if (now - player.lastShotTime > player.shootInterval) {
-            // 発熱処理
             player.heat += player.heatPerShot;
             if (player.heat >= player.maxHeat) {
-                player.heat = player.maxHeat;
-                player.overheated = true;
-                soundSystem.playOverheat();
+                player.heat = player.maxHeat; player.overheated = true; soundSystem.playOverheat();
             }
-
             const baseAngle = player.aimAngle;
             const count = player.shotLevel;
             const spread = 0.15; 
             const startAngle = baseAngle - ((count - 1) * spread) / 2;
             for (let i = 0; i < count; i++) {
                 const angle = startAngle + (i * spread);
-                bullets.push(new Bullet(player.x, player.y, angle));
+                bullets.push(new Bullet(player.x, player.y, angle, player.bulletSpeed));
             }
             soundSystem.playShoot();
             player.lastShotTime = now;
         }
     }
 
-    // Spawn regular enemies
     const difficultyMultiplier = 1 + (elapsed / 60000) * 0.5; 
     let baseInterval = 150 - (settings.spawnRate * 20); 
     let actualInterval = baseInterval / difficultyMultiplier;
     actualInterval = Math.max(5, actualInterval);
 
-    if (frameCount % Math.floor(actualInterval) === 0) {
-        spawnEnemy();
-    }
+    if (frameCount % Math.floor(actualInterval) === 0) spawnEnemy();
 
     particles.forEach((p, index) => { p.update(); p.draw(ctx); if (p.markedForDeletion) particles.splice(index, 1); });
     bullets.forEach((b, index) => { b.update(); b.draw(ctx); if (b.markedForDeletion) bullets.splice(index, 1); });
-    
-    // 敵弾更新
     enemyBullets.forEach((eb, index) => { eb.update(); eb.draw(ctx); if (eb.markedForDeletion) enemyBullets.splice(index, 1); });
-
     enemies.forEach((e, index) => { e.update(); e.draw(ctx); if (e.markedForDeletion) enemies.splice(index, 1); });
-    bosses.forEach((b, index) => { 
-        b.update(enemyBullets, soundSystem); // 引数渡す
-        b.draw(ctx); 
-        if (b.markedForDeletion) bosses.splice(index, 1); 
-    });
+    bosses.forEach((b, index) => { b.update(enemyBullets, soundSystem); b.draw(ctx); if (b.markedForDeletion) bosses.splice(index, 1); });
     powerUps.forEach((p, index) => { p.update(player); p.draw(ctx); if (p.markedForDeletion) powerUps.splice(index, 1); });
     bombItems.forEach((b, index) => { b.update(player); b.draw(ctx); if (b.markedForDeletion) bombItems.splice(index, 1); });
 
