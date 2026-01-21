@@ -450,13 +450,13 @@
                 <input type="range" id="enemySpeed" min="1" max="10" value="4" class="w-full interactive">
             </div>
 
-            <!-- ボスHP倍率 -->
+            <!-- 敵HP倍率 (共通) -->
             <div class="mb-4">
                 <label class="block text-xs text-gray-400 mb-1 flex justify-between">
-                    <span>BOSS HP MULTIPLIER (ボスの硬さ)</span>
-                    <span id="bossHpVal" class="text-white">x1.0</span>
+                    <span>ENEMY HP MULTIPLIER (敵の耐久力)</span>
+                    <span id="enemyHpVal" class="text-white">x2.0</span>
                 </label>
-                <input type="range" id="bossHp" min="1" max="10" value="2" class="w-full interactive">
+                <input type="range" id="enemyHp" min="1" max="10" value="4" class="w-full interactive">
             </div>
 
             <div class="text-center">
@@ -785,14 +785,13 @@ class Enemy {
         
         this.markedForDeletion = false;
         
-        // HP調整ロジック刷新
-        // 基礎HP(15) + (ShotLevel * 15) にサイズ係数を掛ける
-        // ShotLevel 1: (15 + 15) * 1.0 = 30 (3発) 〜 * 2.5 = 75 (8発)
-        // ShotLevel 10: (15 + 150) * 1.0 = 165 (17発) ... 硬い
-        // 弾威力が10なので、そこそこ撃ち込む必要がある
-        const baseHp = 15; 
-        const levelBonus = playerShotLevel * 15;
-        this.maxHp = (baseHp + levelBonus) * this.sizeFactor;
+        // HP調整ロジック刷新 (一般敵と共通)
+        // 弾威力が10なので、基礎HP8なら1発
+        const baseHp = 8; 
+        // レベルボーナスはShotLevelに応じて上昇。ShotLevel1なら0。
+        const levelBonus = (playerShotLevel - 1) * 3;
+        // 基本HPにレベルボーナスを足し、サイズと全体設定の倍率を掛ける
+        this.maxHp = (baseHp + levelBonus) * this.sizeFactor * settings.enemyHpMultiplier;
         this.hp = this.maxHp;
 
         const hue = Math.random() * 60 + 300; 
@@ -849,9 +848,7 @@ class Boss {
         this.lastShotTime = 0;
         this.shootInterval = isLastBoss ? 700 : 1500; 
         
-        // HP調整: 桁違いに増やす
-        // 初期ボス: 30000 * 1.0 = 30000 (弾威力10で3000発) -> 2分間で削り切る目標
-        // ラスボス: 250000 (25万)
+        // HP調整: 共通の敵HP倍率を適用
         if (isLastBoss) {
             this.maxHp = 250000 * hpMultiplier;
             this.radius = 80;
@@ -1201,7 +1198,7 @@ const spawnRateInput = document.getElementById('spawnRate');
 const bulletPowerInput = document.getElementById('bulletPower');
 const enemySpeedInput = document.getElementById('enemySpeed');
 const itemDropRateInput = document.getElementById('itemDropRate');
-const bossHpInput = document.getElementById('bossHp');
+const enemyHpInput = document.getElementById('enemyHp');
 
 // 初期設定値
 const defaultSettings = {
@@ -1209,7 +1206,7 @@ const defaultSettings = {
     bulletPower: 10,
     enemySpeedMultiplier: 1.0,
     itemDropRate: 0.10,
-    bossHpMultiplier: 2.0 // 初期値は2倍
+    enemyHpMultiplier: 2.0 // 初期値は2倍
 };
 
 let settings = { ...defaultSettings };
@@ -1424,8 +1421,8 @@ function updateUIFromSettings() {
     itemDropRateInput.value = rateIndex + 1;
     document.getElementById('dropVal').textContent = ["Very Low", "Low", "Normal", "High", "Abundance"][rateIndex];
 
-    bossHpInput.value = Math.round(settings.bossHpMultiplier * 2); // 0.5 to 5.0 map to 1 to 10
-    document.getElementById('bossHpVal').textContent = `x${settings.bossHpMultiplier}`;
+    enemyHpInput.value = Math.round(settings.enemyHpMultiplier * 2); // 0.5 to 5.0 map to 1 to 10
+    document.getElementById('enemyHpVal').textContent = `x${settings.enemyHpMultiplier}`;
 }
 
 spawnRateInput.addEventListener('input', (e) => {
@@ -1446,9 +1443,9 @@ itemDropRateInput.addEventListener('input', (e) => {
     settings.itemDropRate = [0.02, 0.04, 0.06, 0.10, 0.20][val-1];
     updateUIFromSettings();
 });
-bossHpInput.addEventListener('input', (e) => {
+enemyHpInput.addEventListener('input', (e) => {
     const val = parseInt(e.target.value);
-    settings.bossHpMultiplier = val * 0.5; // 0.5x to 5.0x
+    settings.enemyHpMultiplier = val * 0.5; // 0.5x to 5.0x
     updateUIFromSettings();
 });
 
@@ -1580,7 +1577,7 @@ function spawnBoss(isLastBoss = false) {
         case 2: x = canvas.width/2; y = canvas.height + buffer; break;
         case 3: x = -buffer; y = canvas.height/2; break;
     }
-    bosses.push(new Boss(x, y, player, bossSpawnCount, isLastBoss, settings.bossHpMultiplier));
+    bosses.push(new Boss(x, y, player, bossSpawnCount, isLastBoss, settings.enemyHpMultiplier));
     if (isLastBoss) {
         warningTitle.innerText = "FINAL WARNING"; warningTitle.style.color = "#ff0000"; warningSubtitle.innerText = "OMEGA GUARDIAN APPROACHING"; soundSystem.playBossSpawn(true);
     } else {
