@@ -357,7 +357,7 @@
         </div>
         <!-- 操作ガイド -->
         <div id="pcGuide" class="text-center text-gray-500 text-sm mb-4 opacity-50 hidden">
-            MOUSE to Move / CLICK to Shoot / R-CLICK to Bomb
+            MOUSE to Move & Aim / CLICK to Shoot / R-CLICK to Bomb
         </div>
         <div id="mobileGuide" class="text-center text-gray-500 text-sm mb-4 opacity-50 hidden">
             L-STICK to Move / R-BUTTON to Shoot / S-BUTTON to Bomb
@@ -462,7 +462,7 @@
                     <span>ENEMY SPEED (敵の速度)</span>
                     <span id="speedVal" class="text-white">Normal</span>
                 </label>
-                <input type="range" id="enemySpeed" min="1" max="10" value="4" class="w-full interactive">
+                <input type="range" id="enemySpeed" min="1" max="10" value="3" class="w-full interactive">
             </div>
 
             <!-- 敵HP倍率 (共通) -->
@@ -1220,7 +1220,7 @@ const autoAimToggle = document.getElementById('autoAimToggle');
 const defaultSettings = {
     spawnRate: 2, 
     bulletPower: 10,
-    enemySpeedMultiplier: 1.0,
+    enemySpeedMultiplier: 0.8, // Normal (3) -> 0.8
     itemDropRate: 0.10,
     enemyHpMultiplier: 1.0, // 初期値は1.0に変更 (初期敵のHPを抑えるため)
     autoAim: false // 初期値は後でデバイス判定で上書き
