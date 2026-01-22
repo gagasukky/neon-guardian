@@ -72,6 +72,12 @@
             to { opacity: 0.5; transform: scale(1.1); }
         }
 
+        /* ★追加: フローティングテキスト用アニメーション */
+        @keyframes fadeOut {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-30px) scale(1.2); }
+        }
+
         /* ボムフラッシュ用 */
         #flashLayer {
             position: absolute;
@@ -371,7 +377,7 @@
             MOUSE to Move & Aim / CLICK to Shoot / R-CLICK to Bomb
         </div>
         <div id="mobileGuide" class="text-center text-gray-500 text-sm mb-4 opacity-50 hidden">
-            L-STICK to Move / R-BUTTON to Shoot (Auto Aim Active) / S-BUTTON to Bomb
+            L-STICK to Move / R-BUTTON to Shoot / S-BUTTON to Bomb
         </div>
     </div>
 
@@ -404,7 +410,7 @@
                 <div class="border border-green-500 p-3 rounded bg-green-900 bg-opacity-20">
                     <div class="text-green-400 font-bold text-lg mb-1">タウニュートリノ</div>
                     <div class="text-green-300">ντ (HEAL)</div>
-                    <div class="text-gray-400 mt-2 text-xs">重い世代への崩壊熱を転用。<br>機体修復＆強制冷却。</div>
+                    <div class="text-gray-400 mt-2 text-xs">重い世代への崩壊熱を転用。<br>機体修復＆強制冷却。HP最大時上限突破。</div>
                 </div>
             </div>
 
@@ -866,7 +872,8 @@ class Player {
         this.y = y;
         this.radius = 15;
         this.color = '#00ffff';
-        this.hp = 100;
+        this.maxHp = 100; // 追加: 最大HPを管理
+        this.hp = this.maxHp;
         this.lastShotTime = 0;
         
         this.shootInterval = 250; 
@@ -1005,9 +1012,9 @@ class Enemy {
         this.markedForDeletion = false;
         
         // --- ★★★ 調整ポイント: 敵の硬さ係数 ★★★ ---
-        // baseHp: 基礎HP (初期値: 4)
+        // baseHp: 基礎HP (変更前: 4 -> 変更後: 10)
         const baseHp = 10; 
-        // scalingFactor: 弾数が増えるごとのHP増加量 (初期値: 3)
+        // scalingFactor: 弾数が増えるごとのHP増加量 (変更前: 3 -> 変更後: 10)
         const scalingFactor = 10; 
         
         const levelBonus = (playerShotLevel - 1) * scalingFactor;
@@ -1070,16 +1077,15 @@ class Boss {
         this.shootInterval = isLastBoss ? 700 : 1500; 
         
         // --- ★★★ 調整ポイント: ボスのHP設定 ★★★ ---
-        // HP調整: 大幅に軟化 (1/10) -> 初期HP 300
         if (isLastBoss) {
-            // ラスボス: 3,000
+            // ラスボス: 300,000
             this.maxHp = 300000 * hpMultiplier;
             this.radius = 80;
             this.color = '#ff0000'; 
             this.speed = 1.0; 
         } else {
-            // 通常ボス: Base 200 / Add 100
-            // 1体目: 300
+            // 通常ボス: 5000 + (スポーンカウント * 15000)
+            // 1体目(count=1): 20,000
             this.maxHp = (5000 + (spawnCount * 15000)) * hpMultiplier; 
             this.radius = 50;
             this.color = '#ff0055'; 
@@ -1668,8 +1674,7 @@ function updateUIFromSettings() {
     bulletPowerInput.value = settings.bulletPower;
     document.getElementById('powerVal').textContent = settings.bulletPower;
     
-    // (1.0 - 0.6) / 0.2 = 2 (index) -> +1 = 3 (Normal)
-    const speedIndex = Math.round((settings.enemySpeedMultiplier - 0.6) / 0.2);
+    const speedIndex = Math.round((settings.enemySpeedMultiplier - 0.4) / 0.2);
     enemySpeedInput.value = speedIndex + 1;
     document.getElementById('speedVal').textContent = ["Crawler", "Slow", "Normal", "Fast", "Blitz", "Sonic", "Hyper", "Mach", "Light", "Warp"][speedIndex] || (speedIndex + 1);
     
@@ -1954,11 +1959,23 @@ function checkCollisions() {
                 soundSystem.playItemGet(1);
             }
             else if (pu.type === 2) { 
-                player.hp = Math.min(100, player.hp + 30); 
-                // 追加: ヒートゲージを下げる
+                // ヒートダウンは常に行う
                 player.heat *= 0.5;
-                updateHpUI(); 
-                showFloatingText(player.x, player.y, "HEAL & COOL!", "#00ff00"); 
+                
+                if (player.hp >= player.maxHp) {
+                    // HP満タン時: 上限突破 (+5)
+                    player.maxHp += 5;
+                    player.hp = player.maxHp; 
+                    // "MAX HP UP!" 表示は削除し、下記の共通表示のみにする
+                } else {
+                    // 通常回復
+                    player.hp = Math.min(player.maxHp, player.hp + 30);
+                }
+                
+                // メッセージを統一
+                showFloatingText(player.x, player.y, "HEAL & COOL!", "#00ff00");
+                
+                updateHpUI();
                 soundSystem.playItemGet(2);
             }
             updateStatsUI(); // ステータス更新
@@ -1981,7 +1998,7 @@ function updateStatsUI() {
 
 function updateHpUI() {
     hpEl.innerText = Math.max(0, Math.floor(player.hp));
-    if (player.hp <= 30) hpEl.className = "text-xl md:text-2xl text-red-500 animate-pulse";
+    if (player.hp <= player.maxHp * 0.3) hpEl.className = "text-xl md:text-2xl text-red-500 animate-pulse";
     else hpEl.className = "text-xl md:text-2xl text-red-400";
 }
 
