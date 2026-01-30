@@ -1685,7 +1685,9 @@ function updateUIFromSettings() {
     bulletPowerInput.value = settings.bulletPower;
     document.getElementById('powerVal').textContent = settings.bulletPower;
     
-    const speedIndex = Math.round((settings.enemySpeedMultiplier - 0.4) / 0.2);
+    // 修正: 内部値 1.0 のとき、(1.0 - 0.4) / 0.2 = 3.0 となるため、配列インデックス用に -1 する
+    // これにより Index 2 (Normal) となり、スライダー値は 3 となる
+    const speedIndex = Math.round((settings.enemySpeedMultiplier - 0.4) / 0.2) - 1;
     enemySpeedInput.value = speedIndex + 1;
     document.getElementById('speedVal').textContent = ["Crawler", "Slow", "Normal", "Fast", "Blitz", "Sonic", "Hyper", "Mach", "Light", "Warp"][speedIndex] || (speedIndex + 1);
     
